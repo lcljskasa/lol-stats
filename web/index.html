@@ -187,7 +187,8 @@ main { height: calc(100vh - 52px); padding: 16px; position: relative; }
 .g .cs { text-align: right; min-width: 64px; }
 
 /* ---- 右侧抽屉 ---- */
-.scrim { position: absolute; inset: 0; background: rgba(4, 6, 9, .55); backdrop-filter: blur(3px); z-index: 4; animation: fade .2s both; }
+.scrim { position: absolute; inset: 0; background: rgba(4, 6, 9, .55); backdrop-filter: blur(3px); z-index: 4; }
+.scrim.enter { animation: fade .2s both; }
 .drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 46%); z-index: 5;
           background: #0b0f14; border-left: 1px solid var(--line-2); display: flex; flex-direction: column;
           box-shadow: -30px 0 60px rgba(0, 0, 0, .5); }
@@ -259,6 +260,8 @@ const MODE_NAMES = { all: "", rank: "排位", normal: "匹配", aram: "大乱斗
 const TIER_COLORS = { IRON: "#8a7d76", BRONZE: "#c08560", SILVER: "#aab7c2", GOLD: "#e6be5f", PLATINUM: "#4fc7b5",
   EMERALD: "#43c985", DIAMOND: "#86aeff", MASTER: "#c784ff", GRANDMASTER: "#ff6e6e", CHALLENGER: "#f6d683" };
 
+const TOKEN = "__APP_TOKEN__";
+const api = (path, opts = {}) => fetch(path, { ...opts, headers: { "X-App-Token": TOKEN } });
 let state = null, mode = "all", selected = null, lastKey = "", drawerFresh = false;
 const seen = new Set();
 try { mode = localStorage.getItem("mode") || "all"; } catch (e) {}
@@ -400,7 +403,7 @@ function drawer(p) {
   const bannerId = p.champ || s.champs[0]?.id;
   const cls = drawerFresh ? "drawer enter" : "drawer";
   drawerFresh = false;
-  return `<div class="scrim" data-close="1"></div><aside class="${cls}">
+  return `<div class="scrim${cls.includes("enter") ? " enter" : ""}" data-close="1"></div><aside class="${cls}">
     <div class="banner">${bannerId ? `<img src="${art("splash", bannerId)}" alt="" onerror="this.remove()">` : ""}
       <div class="banner-text"><b>${esc(p.name)}</b><div>最近 ${s.n} 场${MODE_NAMES[mode]} · ${s.n ? pct(s.wr) + "% 胜率 · KDA " + s.kda.toFixed(2) : "没有对局"}</div></div>
       <button class="x" data-close="1"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
@@ -448,13 +451,13 @@ function render() {
 }
 
 async function post(path, body = {}) {
-  try { await fetch(path, { method: "POST", body: JSON.stringify(body) }); } catch (e) {}
+  try { await api(path, { method: "POST", body: JSON.stringify(body) }); } catch (e) {}
   poll();
 }
 
 async function poll() {
   try {
-    state = await (await fetch("/api/state")).json();
+    state = await (await api("/api/state")).json();
     const key = state.version + "|" + mode + "|" + selected;
     if (key !== lastKey) { lastKey = key; render(); }
   } catch (e) {

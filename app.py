@@ -2,6 +2,7 @@
 import ctypes
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
@@ -14,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from lcu import HERE, LCU, RES, NotConnected, POSITIONS
 
 TITLE = "LOL 战绩速览"
+APP_TOKEN = secrets.token_urlsafe(16)  # 只有我们自己的页面知道，挡住其他网页调用本地接口
 SETTINGS = os.path.join(HERE, "settings.json")
 PHASES = {"None": "在大厅", "Lobby": "在房间里", "Matchmaking": "排队中", "ReadyCheck": "找到对局",
           "ChampSelect": "选英雄中", "InProgress": "游戏中", "GameStart": "游戏加载中",
@@ -41,10 +43,16 @@ class State:
         self.version = 0
 
     def update(self, **kw):
+        """只有内容真的变了才加版本号，界面看到版本号变了才会重画。"""
         with self.lock:
+            changed = False
             for k, v in kw.items():
-                setattr(self, k, v)
-            self.version += 1
+                # 列表/字典总是替换：load_players 靠对象身份判断结果是否还有效
+                if isinstance(v, (list, dict)) or getattr(self, k) != v:
+                    setattr(self, k, v)
+                    changed = True
+            if changed:
+                self.version += 1
 
     def snapshot(self):
         with self.lock:
@@ -133,6 +141,8 @@ class Worker(threading.Thread):
 
         session = self.lcu.champ_select() or {}
         team = session.get("myTeam") or []
+        if not team:  # 刚进选英雄时房间信息还没准备好，等下一轮
+            return
         me_cell = session.get("localPlayerCellId")
         entries = [{
             "key": str(m.get("puuid") or m.get("summonerId") or m.get("cellId")),
@@ -177,7 +187,7 @@ def _find_window():
     def cb(hwnd, _):
         buf = ctypes.create_unicode_buffer(256)
         user32.GetWindowTextW(hwnd, buf, 256)
-        if buf.value.startswith(TITLE) and user32.IsWindowVisible(hwnd):
+        if buf.value == TITLE and user32.IsWindowVisible(hwnd):
             found.append(hwnd)
         return True
 
@@ -203,11 +213,10 @@ def set_topmost(on):
 
 def bring_to_front():
     """进入选英雄时把窗口弹到最前面。Windows 不让后台程序直接抢焦点，所以先临时置顶再恢复。"""
-    if WINDOW is not None:
-        WINDOW.restore()
     hwnd = _find_window()
     if hwnd:
-        ctypes.windll.user32.ShowWindow(hwnd, 9)
+        if ctypes.windll.user32.IsIconic(hwnd):  # 只在最小化时还原，最大化的窗口保持原样
+            ctypes.windll.user32.ShowWindow(hwnd, 9)
         _set_z(hwnd, True)
         ctypes.windll.user32.SetForegroundWindow(hwnd)
         if not STATE.settings.get("topmost", True):
@@ -230,9 +239,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def trusted(self):
+        """只接受发给 127.0.0.1 的请求（防 DNS 重绑定），接口还要带上启动时生成的令牌（防其他网页调用）。"""
+        host_ok = self.headers.get("Host") == f"127.0.0.1:{self.server.server_address[1]}"
+        return host_ok and (not self.path.startswith("/api/") or self.headers.get("X-App-Token") == APP_TOKEN)
+
     def do_GET(self):
+        if not self.trusted():
+            return self.send(b"{}", code=403)
         if self.path in ("/", "/index.html"):
-            return self.send(open(os.path.join(RES, "web", "index.html"), "rb").read(), "text/html; charset=utf-8")
+            with open(os.path.join(RES, "web", "index.html"), "rb") as f:
+                page = f.read().replace(b"__APP_TOKEN__", APP_TOKEN.encode())
+            return self.send(page, "text/html; charset=utf-8")
         if self.path == "/api/state":
             data = STATE.snapshot()
             data["champions"] = WORKER.lcu.champions() if WORKER.lcu else {}
@@ -250,6 +268,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send(b"{}", code=404)
 
     def do_POST(self):
+        if not self.trusted():
+            return self.send(b"{}", code=403)
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         if self.path == "/api/self":
             WORKER.want_self.set()
@@ -273,7 +293,8 @@ class Handler(BaseHTTPRequestHandler):
                 if "topmost" in body:
                     STATE.settings["topmost"] = bool(body["topmost"])
                     set_topmost(STATE.settings["topmost"])
-                json.dump(STATE.settings, open(SETTINGS, "w", encoding="utf-8"))
+                with open(SETTINGS, "w", encoding="utf-8") as f:
+                    json.dump(STATE.settings, f)
                 STATE.version += 1
             if "games" in body:
                 WORKER.want_refresh.set()

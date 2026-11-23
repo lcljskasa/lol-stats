@@ -181,12 +181,15 @@ class LCU:
         """返回最近 want 场（新到旧）。缓存里已有的老对局不再重复拉。"""
         path = os.path.join(CACHE_DIR, re.sub(r"[^\w-]", "_", puuid) + ".json")
         try:
-            cache = json.load(open(path, encoding="utf-8"))
+            with open(path, encoding="utf-8") as f:
+                cache = json.load(f)
         except (OSError, ValueError):
             cache = {"depth": 0, "games": []}
         known = {g["id"] for g in cache["games"]}
 
         first = self._page(puuid, 0, min(PAGE, want))
+        if not first:                               # 接口这次没返回数据：用缓存兜底，别把缓存清空
+            return cache["games"][:want]
         fresh = [g for g in first if g["id"] not in known]
         if known and len(fresh) < len(first):      # 和缓存接上了：缓存仍然连续可用
             games = fresh + cache["games"]
