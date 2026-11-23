@@ -141,6 +141,9 @@ class H(BaseHTTPRequestHandler):
         by_puuid = {s[1]: s for s in PLAYERS}
         if p == "/lol-gameflow/v1/gameflow-phase":
             return self.reply("ChampSelect")
+        if p == "/lol-gameflow/v1/session":  # 设置环境变量 MOCK_ARAM=1 模拟大乱斗
+            mode = "ARAM" if os.environ.get("MOCK_ARAM") else "CLASSIC"
+            return self.reply({"gameData": {"queue": {"gameMode": mode, "id": 450 if mode == "ARAM" else 420}}})
         if p == "/lol-summoner/v1/current-summoner":
             return self.reply({"summonerId": 1, "puuid": "p-me", "gameName": "峡谷的风", "tagLine": "12345",
                                "profileIconId": PROFILE_ICONS[1], "summonerLevel": 141})

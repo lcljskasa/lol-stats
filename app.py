@@ -164,7 +164,11 @@ class Worker(threading.Thread):
         key = tuple(e["key"] for e in entries)
         me = next((e for e in entries if e["me"]), {})
         enemies = [m.get("championId") for m in session.get("theirTeam") or [] if m.get("championId")]
-        self.s.update(pick={"champ": me.get("champ"), "pos": me.get("pos_raw"), "enemies": enemies})
+        if key != self.lobby_key:  # 新的一局：看一下是不是大乱斗（每局只查一次）
+            sess = self.lcu.get("/lol-gameflow/v1/session") or {}
+            self.aram = ((sess.get("gameData") or {}).get("queue") or {}).get("gameMode") == "ARAM"
+        self.s.update(pick={"champ": me.get("champ"), "pos": me.get("pos_raw"), "enemies": enemies,
+                            "aram": bool(getattr(self, "aram", False))})
 
         if key != self.lobby_key:
             self.self_mode = False

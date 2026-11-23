@@ -781,8 +781,8 @@ async function loadBuild() {
 /* 进入选英雄时：用我的英雄和位置，并推断对位的敌人 */
 async function autoBuild() {
   const pk = state.pick || {};
-  B.champ = pk.champ || B.champ; B.pos = pk.pos || null; B.target = null; B.mode = "ranked";
-  if (pk.pos && pk.enemies?.length) {
+  B.champ = pk.champ || B.champ; B.pos = pk.pos || null; B.target = null; B.mode = pk.aram ? "aram" : "ranked";
+  if (!pk.aram && pk.pos && pk.enemies?.length) {
     try {
       const q = new URLSearchParams({ pos: pk.pos, enemies: pk.enemies.join(","), tier: otier });
       if (pk.champ) q.set("champ", pk.champ);
@@ -1057,7 +1057,10 @@ async function poll() {
     return;
   }
   if (assetsFor !== state.connected) { assetsFor = state.connected; loadAssets(); }
-  if (state.phase === "选英雄中" && lastPhase !== "选英雄中" && tab === "me") setTab("team");
+  if (state.phase === "选英雄中" && lastPhase !== "选英雄中") {
+    B.auto = true; B.autoKey = null;  // 每局重新开启自动推荐（上一局手动换过英雄也一样）
+    if (tab === "me") setTab("team");
+  }
   lastPhase = state.phase;
   // 选英雄时，我的英雄、位置或对面阵容变了：自动刷新出装和对位
   const pk = JSON.stringify(state.pick || {});
