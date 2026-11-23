@@ -1058,12 +1058,14 @@ async function poll() {
   }
   if (assetsFor !== state.connected) { assetsFor = state.connected; loadAssets(); }
   if (state.phase === "选英雄中" && lastPhase !== "选英雄中") {
-    B.auto = true; B.autoKey = null;  // 每局重新开启自动推荐（上一局手动换过英雄也一样）
+    B.auto = true; B.autoKey = null; B.lastPick = null;  // 每局重新开启自动推荐（上一局手动换过英雄也一样）
     if (tab === "me") setTab("team");
   }
   lastPhase = state.phase;
   // 选英雄时，我的英雄、位置或对面阵容变了：自动刷新出装和对位
   const pk = JSON.stringify(state.pick || {});
+  // 你在客户端里换了英雄：出装页跟着你的新英雄走（即使之前手动看过别的英雄）
+  if (state.pick?.champ && state.pick.champ !== B.lastPick) { B.lastPick = state.pick.champ; B.auto = true; B.autoKey = null; }
   if (state.pick?.champ && pk !== B.autoKey) { B.autoKey = pk; if (B.auto) autoBuild(); }
   const key = [state.version, mode, selected, tab].join("|");
   if (key !== lastKey) { lastKey = key; render(); }
