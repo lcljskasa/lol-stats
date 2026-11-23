@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>LOL 战绩速览</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --bg: #07090d;
+  --card: #0d1117;
+  --card-2: #121821;
+  --line: rgba(255, 255, 255, .06);
+  --line-2: rgba(255, 255, 255, .11);
+  --text: #ece6d8;
+  --text-2: #a7a59e;
+  --text-3: #6c6f75;
+  --gold: #c8aa6e;
+  --gold-hi: #f0e6d2;
+  --gold-lo: #5b4521;
+  --win: #5aa9ff;
+  --loss: #ff5d6c;
+  --mid: #d9b56b;
+  --num: "Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+body { font: 13px/1.45 "Microsoft YaHei UI", "Segoe UI", "PingFang SC", sans-serif; user-select: none; -webkit-font-smoothing: antialiased; }
+.num { font-family: var(--num); font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+img { display: block; }
+
+/* ================= 标题栏 ================= */
+.titlebar {
+  height: 52px; display: flex; align-items: center;
+  background: linear-gradient(#0b0e13, #080a0e); border-bottom: 1px solid var(--line);
+  position: relative; z-index: 10;
+}
+.drag { align-self: stretch; display: flex; align-items: center; }
+.brand { gap: 11px; padding: 0 18px 0 20px; }
+.mark { width: 18px; height: 18px; transform: rotate(45deg); border: 1.5px solid var(--gold); border-radius: 3px;
+        display: grid; place-items: center; box-shadow: 0 0 14px rgba(200, 170, 110, .35); }
+.mark::after { content: ""; width: 6px; height: 6px; background: var(--gold-hi); border-radius: 1px; }
+.brand-name { font-size: 14px; font-weight: 600; letter-spacing: .12em; color: var(--gold-hi); }
+.status { gap: 8px; color: var(--text-3); font-size: 12px; padding-left: 16px; border-left: 1px solid var(--line); min-width: 0; }
+.status b { color: var(--text-2); font-weight: 400; }
+.led { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
+.led.ok { background: #3ddc97; box-shadow: 0 0 8px #3ddc97; }
+.led.bad { background: var(--loss); box-shadow: 0 0 8px var(--loss); }
+.status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grow { flex: 1; }
+
+.tools { display: flex; align-items: center; gap: 6px; padding-right: 10px; }
+.seg { display: flex; padding: 2px; border-radius: 8px; background: rgba(255, 255, 255, .03); border: 1px solid var(--line); }
+.seg button { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--text-3); transition: color .15s, background .15s; }
+.seg button:hover { color: var(--text); }
+.seg button.on { color: var(--gold-hi); background: rgba(200, 170, 110, .12); }
+.seg.count button { font-family: var(--num); min-width: 36px; }
+.tbtn { height: 30px; padding: 0 10px; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px;
+        color: var(--text-2); font-size: 12px; transition: background .15s, color .15s; }
+.tbtn:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
+.tbtn.on { color: var(--gold); }
+.tbtn svg { width: 15px; height: 15px; }
+.tbtn.primary { color: var(--gold-hi); border: 1px solid var(--gold-lo); background: linear-gradient(rgba(200, 170, 110, .12), rgba(200, 170, 110, .04)); }
+.tbtn.primary:hover { border-color: var(--gold); }
+.vsep { width: 1px; height: 20px; background: var(--line-2); margin: 0 6px; }
+
+.winctl { display: flex; align-self: stretch; }
+.winctl button { width: 46px; display: grid; place-items: center; color: var(--text-2); transition: background .12s, color .12s; }
+.winctl button:hover { background: rgba(255, 255, 255, .07); color: var(--text); }
+.winctl button.close:hover { background: #c42b1c; color: #fff; }
+.winctl svg { width: 10px; height: 10px; }
+
+/* ================= 主区域 ================= */
+main { height: calc(100vh - 52px); padding: 16px; position: relative; }
+.team { height: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+
+/* ---- 玩家卡 ---- */
+.card {
+  position: relative; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  border-radius: 14px; background: var(--card); border: 1px solid var(--line); cursor: pointer;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.card:hover { border-color: var(--line-2); transform: translateY(-3px); box-shadow: 0 18px 40px rgba(0, 0, 0, .5); }
+.card.sel { border-color: var(--gold-lo); box-shadow: 0 0 0 1px var(--gold-lo), 0 18px 40px rgba(0, 0, 0, .5); }
+.card.me { border-color: rgba(200, 170, 110, .28); }
+.card.enter { animation: rise .45s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+.hero { position: relative; flex: 0 0 40%; min-height: 190px; overflow: hidden; background: #0a0d12; }
+.hero .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%;
+             transition: transform .6s ease, opacity .4s; }
+.card:hover .hero .art { transform: scale(1.045); }
+.hero.ghost .art { filter: grayscale(.85) brightness(.55); }
+.hero::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(7, 9, 13, .35) 0%, transparent 28%, transparent 45%, rgba(13, 17, 23, .85) 80%, var(--card) 100%); }
+.hero-top { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; z-index: 2; }
+.pos { font-size: 11px; letter-spacing: .14em; color: var(--gold-hi); padding: 3px 9px; border-radius: 999px;
+       background: rgba(7, 9, 13, .55); border: 1px solid rgba(200, 170, 110, .35); backdrop-filter: blur(6px); }
+.me-flag { font-size: 11px; color: #1a1408; background: var(--gold); padding: 3px 9px; border-radius: 999px; font-weight: 600; }
+.hero-bottom { position: absolute; left: 16px; right: 16px; bottom: 12px; z-index: 2; }
+.pick-name { font-size: 12px; color: var(--gold); letter-spacing: .06em; margin-bottom: 2px; text-shadow: 0 1px 6px #000; }
+.pick-name.none { color: var(--text-3); }
+.pname { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.pname b { font-size: 19px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 2px 10px #000; }
+.pname span { font-size: 12px; color: var(--text-2); flex: none; }
+.rank { display: flex; align-items: center; gap: 7px; margin-top: 6px; font-size: 12px; color: var(--text-2); }
+.gem { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 2px; flex: none; }
+.rank .tier { font-weight: 600; }
+
+.body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 6px 16px 14px; }
+.headline { display: flex; align-items: flex-end; justify-content: space-between; }
+.big { font-size: 40px; line-height: 1; font-weight: 600; letter-spacing: -.01em; }
+.big small { font-size: 20px; font-weight: 500; margin-left: 1px; }
+.cap { font-size: 11px; color: var(--text-3); margin-top: 5px; letter-spacing: .04em; }
+.kda { text-align: right; }
+.kda .v { font-size: 22px; line-height: 1; font-weight: 600; }
+.kda .s { font-size: 12px; color: var(--text-2); margin-top: 5px; }
+.wl { display: flex; height: 4px; border-radius: 4px; overflow: hidden; margin: 12px 0 5px; background: var(--line); }
+.wl .w { background: var(--win); } .wl .l { background: var(--loss); opacity: .85; }
+.wl-text { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); }
+
+.form { margin-top: 14px; }
+.form-bar { display: flex; gap: 3px; margin-top: 6px; }
+.form-bar i { flex: 1; height: 16px; border-radius: 3px; background: var(--line); position: relative; }
+.form-bar i.w { background: linear-gradient(var(--win), #2f6fb8); }
+.form-bar i.l { background: linear-gradient(var(--loss), #a8303c); opacity: .9; }
+.label { font-size: 11px; color: var(--text-3); letter-spacing: .04em; display: flex; justify-content: space-between; }
+
+.notes { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; min-height: 18px; font-size: 12px; color: var(--text-2); }
+.note::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 6px;
+                vertical-align: middle; background: var(--text-3); }
+.note.good::before { background: var(--win); } .note.bad::before { background: var(--loss); } .note.gold::before { background: var(--gold); }
+.note.good { color: #9cc9ff; } .note.bad { color: #ff9aa3; } .note.gold { color: var(--gold-hi); }
+
+.mini { flex: 1; min-height: 0; overflow: hidden; margin-top: 12px; display: flex; flex-direction: column; flex-wrap: wrap;
+        align-content: flex-start; column-gap: 40px; row-gap: 3px; }  /* 放不下的行会换到右侧被裁掉的列，不会露出半行 */
+.mini > * { width: 100%; }
+.mr { flex: none; display: grid; grid-template-columns: 2px 22px 1fr auto; align-items: center; gap: 8px; height: 28px;
+      padding-right: 8px; border-radius: 6px; background: rgba(255, 255, 255, .025); overflow: hidden; }
+.mr .e { align-self: stretch; }
+.mr.w .e { background: var(--win); } .mr.l .e { background: var(--loss); }
+.mr img, .mr .ph { width: 22px; height: 22px; border-radius: 5px; object-fit: cover; background: var(--card-2); }
+.mr .n { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
+.mr .n em { font-style: normal; color: var(--text-3); font-size: 11px; margin-left: 4px; }
+.mr .s { font-family: var(--num); font-size: 12px; color: var(--text); }
+.mr .s .d { color: var(--loss); }
+.pool { padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.pc { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; }
+.pc img, .pc .ph { width: 30px; height: 30px; border-radius: 7px; object-fit: cover; background: var(--card-2); border: 1px solid var(--line); }
+.pc-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-sub { font-size: 11px; color: var(--text-3); }
+.pc-wr { font-size: 15px; font-weight: 600; text-align: right; }
+
+.c-good { color: var(--win); } .c-bad { color: var(--loss); } .c-mid { color: var(--mid); } .c-dim { color: var(--text-3); }
+
+/* 骨架 */
+.sk { background: linear-gradient(90deg, #10151c 0%, #19212b 50%, #10151c 100%); background-size: 200% 100%;
+      animation: shimmer 1.3s linear infinite; border-radius: 6px; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* ---- 个人视图 ---- */
+.solo { height: 100%; display: grid; grid-template-columns: 300px 1fr; gap: 16px; }
+.solo .card { cursor: default; }
+.solo .card:hover { transform: none; }
+.panel { min-height: 0; display: flex; flex-direction: column; border-radius: 14px; background: var(--card); border: 1px solid var(--line); overflow: hidden; }
+.panel-head { display: flex; align-items: baseline; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+.panel-head h2 { font-size: 15px; font-weight: 600; color: var(--gold-hi); }
+.panel-head span { font-size: 12px; color: var(--text-3); }
+.list { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.list > * { flex: none; }
+
+/* ---- 对局行 ---- */
+.g { display: grid; grid-template-columns: 3px 40px 1fr auto auto; align-items: center; gap: 12px;
+     padding: 8px 14px 8px 0; border-radius: 10px; background: rgba(255, 255, 255, .02); overflow: hidden; }
+.g:hover { background: rgba(255, 255, 255, .04); }
+.g .edge { align-self: stretch; margin: -8px 0; }
+.g.w .edge { background: var(--win); } .g.l .edge { background: var(--loss); }
+.g.w { background: linear-gradient(90deg, rgba(90, 169, 255, .08), rgba(255, 255, 255, .015) 40%); }
+.g.l { background: linear-gradient(90deg, rgba(255, 93, 108, .08), rgba(255, 255, 255, .015) 40%); }
+.g img, .g .ph { width: 40px; height: 40px; border-radius: 9px; object-fit: cover; background: var(--card-2); }
+.g .t1 { font-size: 13px; }
+.g .t2 { font-size: 11px; color: var(--text-3); }
+.g .res { font-size: 12px; font-weight: 600; margin-left: 6px; }
+.g .k { text-align: right; min-width: 92px; }
+.g .k .t1 { font-family: var(--num); font-size: 15px; font-weight: 600; letter-spacing: .02em; }
+.g .k .t1 .d { color: var(--loss); }
+.g .cs { text-align: right; min-width: 64px; }
+
+/* ---- 右侧抽屉 ---- */
+.scrim { position: absolute; inset: 0; background: rgba(4, 6, 9, .55); backdrop-filter: blur(3px); z-index: 4; animation: fade .2s both; }
+.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 46%); z-index: 5;
+          background: #0b0f14; border-left: 1px solid var(--line-2); display: flex; flex-direction: column;
+          box-shadow: -30px 0 60px rgba(0, 0, 0, .5); }
+.drawer.enter { animation: slide .28s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes slide { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fade { from { opacity: 0; } }
+.banner { position: relative; height: 150px; flex: none; overflow: hidden; }
+.banner img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; }
+.banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 15, 20, .1), #0b0f14); }
+.banner-text { position: absolute; left: 20px; bottom: 14px; right: 60px; z-index: 2; }
+.banner-text b { font-size: 20px; color: #fff; font-weight: 600; text-shadow: 0 2px 10px #000; }
+.banner-text div { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.x { position: absolute; top: 12px; right: 12px; z-index: 3; width: 32px; height: 32px; border-radius: 50%;
+     display: grid; place-items: center; background: rgba(7, 9, 13, .6); color: var(--text-2); }
+.x:hover { color: #fff; background: rgba(7, 9, 13, .85); }
+.x svg { width: 12px; height: 12px; }
+
+/* ---- 空状态 ---- */
+.empty { height: 100%; display: grid; place-items: center; text-align: center; position: relative; overflow: hidden; }
+.empty::before { content: ""; position: absolute; width: 900px; height: 900px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(200, 170, 110, .07), transparent 60%); }
+.empty-inner { position: relative; }
+.rings { width: 120px; height: 120px; margin: 0 auto 28px; position: relative; }
+.rings i { position: absolute; inset: 0; border: 1px solid rgba(200, 170, 110, .45); transform: rotate(45deg); border-radius: 14px;
+           animation: pulse 2.8s ease-out infinite; }
+.rings i:nth-child(2) { animation-delay: .9s; } .rings i:nth-child(3) { animation-delay: 1.8s; }
+.rings b { position: absolute; inset: 42px; transform: rotate(45deg); background: var(--gold); border-radius: 5px; box-shadow: 0 0 30px rgba(200, 170, 110, .6); }
+@keyframes pulse { from { transform: rotate(45deg) scale(.35); opacity: 1; } to { transform: rotate(45deg) scale(1); opacity: 0; } }
+.empty h2 { font-size: 22px; font-weight: 600; color: var(--gold-hi); letter-spacing: .08em; }
+.empty p { color: var(--text-2); margin: 10px 0 26px; }
+.empty .tbtn.primary { height: 38px; padding: 0 20px; font-size: 13px; }
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .1); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+</style>
+</head>
+<body>
+<div class="titlebar">
+  <div class="drag brand pywebview-drag-region"><div class="mark pywebview-drag-region"></div><span class="brand-name pywebview-drag-region">战绩速览</span></div>
+  <div class="drag status pywebview-drag-region"><span class="led" id="led"></span><span class="status-text pywebview-drag-region" id="status">正在连接…</span></div>
+  <div class="drag grow pywebview-drag-region"></div>
+  <div class="tools">
+    <div class="seg" id="mode">
+      <button data-v="all">全部</button><button data-v="rank">排位</button>
+      <button data-v="normal">匹配</button><button data-v="aram">大乱斗</button>
+    </div>
+    <div class="seg count" id="count">
+      <button data-v="20">20</button><button data-v="50">50</button><button data-v="100">100</button><button data-v="200">200</button>
+    </div>
+    <span class="vsep"></span>
+    <button class="tbtn" id="refresh" title="重新查询"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
+    <button class="tbtn" id="pin" title="窗口置顶"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg></button>
+    <button class="tbtn primary" id="self">我的战绩</button>
+  </div>
+  <div class="winctl" id="winctl">
+    <button data-a="minimize" title="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg></button>
+    <button data-a="maximize" title="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg></button>
+    <button data-a="close" class="close" title="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></button>
+  </div>
+</div>
+
+<main id="main"></main>
+
+<script>
+const QUEUES = { 420: "单双排", 440: "灵活排", 400: "匹配", 430: "匹配", 490: "快速匹配", 450: "大乱斗",
+                 1700: "斗魂竞技场", 1900: "无限火力", 900: "无限乱斗", 830: "人机", 840: "人机", 850: "人机" };
+const MODES = { all: null, rank: [420, 440], normal: [400, 430, 490], aram: [450] };
+const MODE_NAMES = { all: "", rank: "排位", normal: "匹配", aram: "大乱斗" };
+const TIER_COLORS = { IRON: "#8a7d76", BRONZE: "#c08560", SILVER: "#aab7c2", GOLD: "#e6be5f", PLATINUM: "#4fc7b5",
+  EMERALD: "#43c985", DIAMOND: "#86aeff", MASTER: "#c784ff", GRANDMASTER: "#ff6e6e", CHALLENGER: "#f6d683" };
+
+let state = null, mode = "all", selected = null, lastKey = "", drawerFresh = false;
+const seen = new Set();
+try { mode = localStorage.getItem("mode") || "all"; } catch (e) {}
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const champName = id => (state?.champions || {})[id] || "";
+const pct = x => Math.round(x * 100);
+const tone = (wr, n) => n < 5 ? "c-dim" : wr >= .55 ? "c-good" : wr < .45 ? "c-bad" : "c-mid";
+const art = (kind, id) => `/art/${kind}/${id}`;
+const img = (kind, id, cls = "") => id
+  ? `<img class="${cls}" src="${art(kind, id)}" alt="" onerror="this.style.visibility='hidden'">`
+  : `<div class="ph ${cls}"></div>`;
+
+function ago(t) {
+  const m = (Date.now() - t) / 60000;
+  if (m < 60) return Math.max(1, Math.round(m)) + " 分钟前";
+  if (m < 1440) return Math.round(m / 60) + " 小时前";
+  if (m < 43200) return Math.round(m / 1440) + " 天前";
+  return new Date(t).toLocaleDateString("zh-CN");
+}
+
+function stats(p) {
+  const qs = MODES[mode];
+  const gs = (p.games || []).filter(g => g.dur >= 300 && (!qs || qs.includes(g.q))).slice(0, state.settings.games);
+  const n = gs.length;
+  if (!n) return { n: 0, gs, champs: [] };
+  const wins = gs.filter(g => g.win).length;
+  const sum = k => gs.reduce((a, g) => a + g[k], 0);
+  const [k, d, a] = ["k", "d", "a"].map(sum);
+  const by = {};
+  for (const g of gs) {
+    const c = by[g.c] ??= { id: g.c, n: 0, w: 0 };
+    c.n++; c.w += g.win;
+  }
+  const champs = Object.values(by).sort((x, y) => y.n - x.n || y.w - x.w);
+  let streak = 0;
+  for (const g of gs) { if (g.win === gs[0].win) streak++; else break; }
+  const all = (p.games || []).length;
+  return { n, gs, wins, wr: wins / n, kda: (k + a) / Math.max(d, 1), avg: [k / n, d / n, a / n],
+           champs, streak, streakWin: gs[0].win, aramShare: all ? (p.games.filter(g => g.q === 450).length / all) : 0 };
+}
+
+function notes(p, s) {
+  const t = [];
+  if (s.streak >= 3) t.push(s.streakWin ? ["good", `${s.streak} 连胜`] : ["bad", `${s.streak} 连败`]);
+  const top = s.champs[0];
+  if (top && s.n >= 10 && top.n / s.n >= .4) t.push(["gold", `绝活 ${champName(top.id)}`]);
+  if (p.champ) {
+    const c = s.champs.find(c => c.id === p.champ);
+    if (!c && s.n >= 10) t.push(["bad", "本局英雄近期没玩过"]);
+    else if (c && c.n >= 5) t.push([c.w / c.n >= .55 ? "good" : c.w / c.n < .45 ? "bad" : "", `本局英雄 ${c.w}胜${c.n - c.w}负`]);
+  }
+  if (s.n >= 10 && s.kda >= 4) t.push(["good", "数据亮眼"]);
+  if (mode === "all" && s.aramShare > .5) t.push(["", "常玩大乱斗"]);
+  return t.slice(0, 3);
+}
+
+function rankLine(r) {
+  if (!r) return `<span class="c-dim">段位未知</span>`;
+  if (!r.tier) return `<span class="gem" style="background:#3a3f47"></span><span class="c-dim">${esc(r.text)}</span>`;
+  const games = r.wins + r.losses, color = TIER_COLORS[r.tier] || "var(--text)";
+  return `<span class="gem" style="background:${color};box-shadow:0 0 8px ${color}"></span>`
+    + `<span class="tier" style="color:${color}">${esc(r.text)}</span><span class="num">${r.lp} 点</span>`
+    + (games ? `<span class="c-dim num">· 赛季 ${pct(r.wins / games)}%</span>` : "");
+}
+
+function hero(p, s) {
+  const artId = p.champ || s?.champs?.[0]?.id;
+  const solo = state.view === "self";
+  const ghost = !p.champ && !solo;
+  const pick = p.champ ? `<div class="pick-name">${esc(champName(p.champ))}</div>`
+             : solo && artId ? `<div class="pick-name">常用 · ${esc(champName(artId))}</div>`
+             : `<div class="pick-name none">${p.loading ? "　" : "尚未选择英雄"}</div>`;
+  return `<div class="hero${ghost ? " ghost" : ""}">
+    ${artId ? `<img class="art" src="${art("load", artId)}" alt="" onerror="this.remove()">` : ""}
+    <div class="hero-top"><span class="pos">${esc(p.pos || (solo ? "我的战绩" : "玩家"))}</span>${p.me ? '<span class="me-flag">我</span>' : ""}</div>
+    <div class="hero-bottom">${pick}
+      <div class="pname"><b>${esc(p.name || (p.loading ? "查询中…" : ""))}</b>${p.tag ? `<span>#${esc(p.tag)}</span>` : ""}</div>
+      <div class="rank">${p.loading ? '<span class="c-dim">正在读取段位…</span>' : rankLine(p.rank)}</div>
+    </div></div>`;
+}
+
+function skeleton(p) {
+  return `${hero(p, null)}<div class="body">
+    <div class="headline"><div class="sk" style="width:90px;height:40px"></div><div class="sk" style="width:70px;height:30px"></div></div>
+    <div class="sk" style="height:4px;margin:14px 0 18px"></div><div class="sk" style="height:16px"></div>
+    <div class="mini">${'<div class="sk" style="height:28px;flex:none"></div>'.repeat(6)}</div>
+    <div class="pool">${'<div class="sk" style="height:30px"></div>'.repeat(3)}</div></div>`;
+}
+
+function cardBody(p, s) {
+  if (p.error) return `<div class="body"><p class="c-dim" style="margin-top:12px">${esc(p.error)}</p></div>`;
+  if (!s.n) return `<div class="body"><p class="c-dim" style="margin-top:12px">最近没有${MODE_NAMES[mode]}对局</p></div>`;
+  const form = Array.from({ length: 10 }, (_, j) => {
+    const g = s.gs[j];
+    return `<i class="${g ? (g.win ? "w" : "l") : ""}" title="${g ? esc(`${champName(g.c)} ${g.k}/${g.d}/${g.a}`) : ""}"></i>`;
+  }).join("");
+  const pool = s.champs.slice(0, 3).map(c => `<div class="pc">${img("square", c.id)}
+      <div style="min-width:0"><div class="pc-name">${esc(champName(c.id))}</div><div class="pc-sub num">${c.n} 场 · ${c.w}胜</div></div>
+      <div class="pc-wr num ${tone(c.w / c.n, c.n >= 3 ? 5 : 0)}">${pct(c.w / c.n)}%</div></div>`).join("");
+  const ns = notes(p, s).map(([c, t]) => `<span class="note ${c}">${esc(t)}</span>`).join("");
+  return `<div class="body">
+    <div class="headline">
+      <div><div class="big num ${tone(s.wr, s.n)}">${pct(s.wr)}<small>%</small></div><div class="cap">近 ${s.n} 场${MODE_NAMES[mode]}胜率</div></div>
+      <div class="kda"><div class="v num ${s.kda >= 3.5 ? "c-good" : s.kda < 2 ? "c-bad" : ""}">${s.kda.toFixed(2)}</div>
+        <div class="s num">${s.avg.map(x => x.toFixed(1)).join(" / ")}</div></div>
+    </div>
+    <div class="wl"><div class="w" style="width:${s.wr * 100}%"></div><div class="l" style="flex:1"></div></div>
+    <div class="wl-text num"><span>${s.wins} 胜</span><span>${s.n - s.wins} 负</span></div>
+    <div class="form"><div class="label"><span>最近 10 场</span><span>新 → 旧</span></div><div class="form-bar">${form}</div></div>
+    <div class="notes">${ns}</div>
+    <div class="mini">${s.gs.slice(0, 12).map(g => `<div class="mr ${g.win ? "w" : "l"}"><div class="e"></div>${img("square", g.c)}
+      <div class="n">${esc(champName(g.c))}<em>${esc(QUEUES[g.q] || "其他")} · ${ago(g.t)}</em></div>
+      <div class="s">${g.k}/<span class="d">${g.d}</span>/${g.a}</div></div>`).join("")}</div>
+    <div class="pool">${pool}</div></div>`;
+}
+
+function card(p, clickable = true) {
+  const enter = seen.has(p.key) ? "" : " enter";
+  const cls = `card${p.me ? " me" : ""}${selected === p.key ? " sel" : ""}${enter}`;
+  const i = (state.players || []).indexOf(p);
+  const attrs = `class="${cls}" style="animation-delay:${Math.max(0, i) * 60}ms"${clickable && !p.loading && !p.error ? ` data-key="${esc(p.key)}"` : ""}`;
+  if (p.loading) return `<div ${attrs}>${skeleton(p)}</div>`;
+  const s = stats(p);
+  return `<div ${attrs}>${hero(p, s)}${cardBody(p, s)}</div>`;
+}
+
+function gameRows(s, limit = 200) {
+  return s.gs.slice(0, limit).map(g => `<div class="g ${g.win ? "w" : "l"}"><div class="edge"></div>${img("square", g.c)}
+      <div style="min-width:0"><div class="t1">${esc(champName(g.c))}<span class="res ${g.win ? "c-good" : "c-bad"}">${g.win ? "胜利" : "失败"}</span></div>
+        <div class="t2">${esc(QUEUES[g.q] || "其他")} · ${Math.round(g.dur / 60)} 分钟 · ${ago(g.t)}</div></div>
+      <div class="k"><div class="t1">${g.k} / <span class="d">${g.d}</span> / ${g.a}</div><div class="t2 num">KDA ${((g.k + g.a) / Math.max(g.d, 1)).toFixed(1)}</div></div>
+      <div class="cs"><div class="t1 num">${g.cs}</div><div class="t2">补刀</div></div></div>`).join("");
+}
+
+function drawer(p) {
+  const s = stats(p);
+  const bannerId = p.champ || s.champs[0]?.id;
+  const cls = drawerFresh ? "drawer enter" : "drawer";
+  drawerFresh = false;
+  return `<div class="scrim" data-close="1"></div><aside class="${cls}">
+    <div class="banner">${bannerId ? `<img src="${art("splash", bannerId)}" alt="" onerror="this.remove()">` : ""}
+      <div class="banner-text"><b>${esc(p.name)}</b><div>最近 ${s.n} 场${MODE_NAMES[mode]} · ${s.n ? pct(s.wr) + "% 胜率 · KDA " + s.kda.toFixed(2) : "没有对局"}</div></div>
+      <button class="x" data-close="1"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
+    <div class="list">${gameRows(s) || '<p class="c-dim" style="padding:20px">没有对局</p>'}</div></aside>`;
+}
+
+function emptyView() {
+  const c = state?.connected;
+  return `<div class="empty"><div class="empty-inner"><div class="rings"><i></i><i></i><i></i><b></b></div>
+    <h2>${c ? "等待进入选英雄" : "未连接到客户端"}</h2>
+    <p>${c ? "进入选英雄后会自动查询队友战绩，窗口会弹到最前面" : "请先登录英雄联盟客户端，连接后这里会自动更新"}</p>
+    ${c ? '<button class="tbtn primary" data-act="self">先看看我的战绩</button>' : ""}</div></div>`;
+}
+
+function render() {
+  if (!state) return;
+  $("#led").className = "led " + (state.connected ? "ok" : "bad");
+  $("#status").innerHTML = [state.phase && `<b>${esc(state.phase)}</b>`, esc(state.status)].filter(Boolean).join(" · ");
+  document.querySelectorAll("#count button").forEach(b => b.classList.toggle("on", +b.dataset.v === state.settings.games));
+  document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.v === mode));
+  $("#pin").classList.toggle("on", !!state.settings.topmost);
+  $("#winctl").style.display = state.native ? "" : "none";
+  const backToTeam = state.view === "self" && state.phase === "选英雄中";
+  $("#self").textContent = backToTeam ? "返回队友" : "我的战绩";
+  $("#self").dataset.target = backToTeam ? "/api/team" : "/api/self";
+
+  const players = state.players || [];
+  let html;
+  if (!players.length) {
+    html = emptyView();
+  } else if (state.view === "self") {
+    const p = players[0], s = p.loading ? null : stats(p);
+    html = `<div class="solo">${card(p, false)}<section class="panel">
+      <div class="panel-head"><h2>最近对局</h2><span>${s ? `${s.n} 场${MODE_NAMES[mode]}` : "加载中…"}</span></div>
+      <div class="list">${s ? gameRows(s) : ""}</div></section></div>`;
+  } else {
+    if (!players.some(p => p.key === selected && !p.loading)) selected = null;
+    const sel = players.find(p => p.key === selected);
+    html = `<div class="team">${players.map(p => card(p)).join("")}</div>${sel ? drawer(sel) : ""}`;
+  }
+  const list = document.querySelector(".list"), top = list ? list.scrollTop : 0;
+  $("#main").innerHTML = html;
+  const nl = document.querySelector(".list"); if (nl) nl.scrollTop = top;
+  players.forEach(p => { if (!p.loading) seen.add(p.key); });
+}
+
+async function post(path, body = {}) {
+  try { await fetch(path, { method: "POST", body: JSON.stringify(body) }); } catch (e) {}
+  poll();
+}
+
+async function poll() {
+  try {
+    state = await (await fetch("/api/state")).json();
+    const key = state.version + "|" + mode + "|" + selected;
+    if (key !== lastKey) { lastKey = key; render(); }
+  } catch (e) {
+    $("#status").textContent = "后台程序已退出";
+    $("#led").className = "led bad";
+  }
+}
+
+document.addEventListener("click", e => {
+  const seg = e.target.closest(".seg button");
+  if (seg?.parentElement.id === "mode") {
+    mode = seg.dataset.v;
+    try { localStorage.setItem("mode", mode); } catch (err) {}
+    lastKey = ""; render(); return;
+  }
+  if (seg?.parentElement.id === "count") { post("/api/settings", { games: +seg.dataset.v }); return; }
+  const win = e.target.closest("#winctl button");
+  if (win) { post("/api/window", { action: win.dataset.a }); return; }
+  if (e.target.closest("[data-close]")) { selected = null; lastKey = ""; render(); return; }
+  if (e.target.closest("[data-act=self]")) { post("/api/self"); return; }
+  const c = e.target.closest(".card[data-key]");
+  if (c) { selected = c.dataset.key; drawerFresh = true; lastKey = ""; render(); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && selected) { selected = null; lastKey = ""; render(); } });
+$("#self").onclick = e => post(e.currentTarget.dataset.target || "/api/self");
+$("#refresh").onclick = () => post("/api/refresh");
+$("#pin").onclick = () => post("/api/settings", { topmost: !state?.settings.topmost });
+
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>
