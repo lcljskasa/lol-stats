@@ -9,6 +9,7 @@
   --bg: #07090d;
   --card: #0d1117;
   --card-2: #121821;
+  --card-3: #171f2a;
   --line: rgba(255, 255, 255, .06);
   --line-2: rgba(255, 255, 255, .11);
   --text: #ece6d8;
@@ -28,67 +29,71 @@ body { font: 13px/1.45 "Microsoft YaHei UI", "Segoe UI", "PingFang SC", sans-ser
 .num { font-family: var(--num); font-variant-numeric: tabular-nums; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 img { display: block; }
+.c-good { color: var(--win); } .c-bad { color: var(--loss); } .c-mid { color: var(--mid); } .c-dim { color: var(--text-3); } .c-gold { color: var(--gold); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .1); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 
 /* ================= 标题栏 ================= */
-.titlebar {
-  height: 52px; display: flex; align-items: center;
-  background: linear-gradient(#0b0e13, #080a0e); border-bottom: 1px solid var(--line);
-  position: relative; z-index: 10;
-}
+.titlebar { height: 52px; display: flex; align-items: center; background: linear-gradient(#0b0e13, #080a0e);
+            border-bottom: 1px solid var(--line); position: relative; z-index: 20; }
 .drag { align-self: stretch; display: flex; align-items: center; }
-.brand { gap: 11px; padding: 0 18px 0 20px; }
+.brand { gap: 11px; padding: 0 16px 0 20px; }
 .mark { width: 18px; height: 18px; transform: rotate(45deg); border: 1.5px solid var(--gold); border-radius: 3px;
         display: grid; place-items: center; box-shadow: 0 0 14px rgba(200, 170, 110, .35); }
 .mark::after { content: ""; width: 6px; height: 6px; background: var(--gold-hi); border-radius: 1px; }
 .brand-name { font-size: 14px; font-weight: 600; letter-spacing: .12em; color: var(--gold-hi); }
-.status { gap: 8px; color: var(--text-3); font-size: 12px; padding-left: 16px; border-left: 1px solid var(--line); min-width: 0; }
+.nav { display: flex; align-self: stretch; gap: 2px; padding: 0 6px; border-left: 1px solid var(--line); }
+.nav button { position: relative; padding: 0 14px; font-size: 13px; color: var(--text-3); transition: color .15s; }
+.nav button:hover { color: var(--text); }
+.nav button.on { color: var(--gold-hi); }
+.nav button.on::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; background: var(--gold); border-radius: 2px; }
+.status { gap: 8px; color: var(--text-3); font-size: 12px; padding: 0 14px; border-left: 1px solid var(--line); min-width: 0; }
 .status b { color: var(--text-2); font-weight: 400; }
 .led { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
 .led.ok { background: #3ddc97; box-shadow: 0 0 8px #3ddc97; }
 .led.bad { background: var(--loss); box-shadow: 0 0 8px var(--loss); }
 .status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .grow { flex: 1; }
-
-.tools { display: flex; align-items: center; gap: 6px; padding-right: 10px; }
+.tools { display: flex; align-items: center; gap: 6px; padding-right: 8px; }
 .seg { display: flex; padding: 2px; border-radius: 8px; background: rgba(255, 255, 255, .03); border: 1px solid var(--line); }
-.seg button { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--text-3); transition: color .15s, background .15s; }
+.seg button { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--text-3); transition: color .15s, background .15s; white-space: nowrap; }
 .seg button:hover { color: var(--text); }
 .seg button.on { color: var(--gold-hi); background: rgba(200, 170, 110, .12); }
 .seg.count button { font-family: var(--num); min-width: 36px; }
 .tbtn { height: 30px; padding: 0 10px; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px;
-        color: var(--text-2); font-size: 12px; transition: background .15s, color .15s; }
+        color: var(--text-2); font-size: 12px; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; }
 .tbtn:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
 .tbtn.on { color: var(--gold); }
 .tbtn svg { width: 15px; height: 15px; }
 .tbtn.primary { color: var(--gold-hi); border: 1px solid var(--gold-lo); background: linear-gradient(rgba(200, 170, 110, .12), rgba(200, 170, 110, .04)); }
 .tbtn.primary:hover { border-color: var(--gold); }
-.vsep { width: 1px; height: 20px; background: var(--line-2); margin: 0 6px; }
-
+.tbtn:disabled { opacity: .4; cursor: default; }
 .winctl { display: flex; align-self: stretch; }
 .winctl button { width: 46px; display: grid; place-items: center; color: var(--text-2); transition: background .12s, color .12s; }
 .winctl button:hover { background: rgba(255, 255, 255, .07); color: var(--text); }
 .winctl button.close:hover { background: #c42b1c; color: #fff; }
 .winctl svg { width: 10px; height: 10px; }
 
-/* ================= 主区域 ================= */
 main { height: calc(100vh - 52px); padding: 16px; position: relative; }
-.team { height: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.panel { min-height: 0; display: flex; flex-direction: column; border-radius: 14px; background: var(--card); border: 1px solid var(--line); overflow: hidden; }
+.panel-head { display: flex; align-items: baseline; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); flex: none; }
+.panel-head h2 { font-size: 14px; font-weight: 600; color: var(--gold-hi); }
+.panel-head span { font-size: 12px; color: var(--text-3); }
+.panel-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; }
+.list { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.list > * { flex: none; }
 
-/* ---- 玩家卡 ---- */
-.card {
-  position: relative; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
-  border-radius: 14px; background: var(--card); border: 1px solid var(--line); cursor: pointer;
-  transition: border-color .2s, transform .2s, box-shadow .2s;
-}
+/* ================= 玩家卡 ================= */
+.team { height: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.card { position: relative; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 14px;
+        background: var(--card); border: 1px solid var(--line); cursor: pointer; transition: border-color .2s, transform .2s, box-shadow .2s; }
 .card:hover { border-color: var(--line-2); transform: translateY(-3px); box-shadow: 0 18px 40px rgba(0, 0, 0, .5); }
 .card.sel { border-color: var(--gold-lo); box-shadow: 0 0 0 1px var(--gold-lo), 0 18px 40px rgba(0, 0, 0, .5); }
 .card.me { border-color: rgba(200, 170, 110, .28); }
 .card.enter { animation: rise .45s cubic-bezier(.2, .7, .2, 1) both; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-
 .hero { position: relative; flex: 0 0 40%; min-height: 190px; overflow: hidden; background: #0a0d12; }
-.hero .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%;
-             transition: transform .6s ease, opacity .4s; }
+.hero .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%; transition: transform .6s ease; }
 .card:hover .hero .art { transform: scale(1.045); }
 .hero.ghost .art { filter: grayscale(.85) brightness(.55); }
 .hero::after { content: ""; position: absolute; inset: 0;
@@ -106,7 +111,6 @@ main { height: calc(100vh - 52px); padding: 16px; position: relative; }
 .rank { display: flex; align-items: center; gap: 7px; margin-top: 6px; font-size: 12px; color: var(--text-2); }
 .gem { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 2px; flex: none; }
 .rank .tier { font-weight: 600; }
-
 .body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 6px 16px 14px; }
 .headline { display: flex; align-items: flex-end; justify-content: space-between; }
 .big { font-size: 40px; line-height: 1; font-weight: 600; letter-spacing: -.01em; }
@@ -118,22 +122,18 @@ main { height: calc(100vh - 52px); padding: 16px; position: relative; }
 .wl { display: flex; height: 4px; border-radius: 4px; overflow: hidden; margin: 12px 0 5px; background: var(--line); }
 .wl .w { background: var(--win); } .wl .l { background: var(--loss); opacity: .85; }
 .wl-text { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); }
-
 .form { margin-top: 14px; }
 .form-bar { display: flex; gap: 3px; margin-top: 6px; }
-.form-bar i { flex: 1; height: 16px; border-radius: 3px; background: var(--line); position: relative; }
+.form-bar i { flex: 1; height: 16px; border-radius: 3px; background: var(--line); }
 .form-bar i.w { background: linear-gradient(var(--win), #2f6fb8); }
 .form-bar i.l { background: linear-gradient(var(--loss), #a8303c); opacity: .9; }
 .label { font-size: 11px; color: var(--text-3); letter-spacing: .04em; display: flex; justify-content: space-between; }
-
 .notes { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; min-height: 18px; font-size: 12px; color: var(--text-2); }
-.note::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 6px;
-                vertical-align: middle; background: var(--text-3); }
+.note::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: var(--text-3); }
 .note.good::before { background: var(--win); } .note.bad::before { background: var(--loss); } .note.gold::before { background: var(--gold); }
 .note.good { color: #9cc9ff; } .note.bad { color: #ff9aa3; } .note.gold { color: var(--gold-hi); }
-
 .mini { flex: 1; min-height: 0; overflow: hidden; margin-top: 12px; display: flex; flex-direction: column; flex-wrap: wrap;
-        align-content: flex-start; column-gap: 40px; row-gap: 3px; }  /* 放不下的行会换到右侧被裁掉的列，不会露出半行 */
+        align-content: flex-start; column-gap: 40px; row-gap: 3px; }
 .mini > * { width: 100%; }
 .mr { flex: none; display: grid; grid-template-columns: 2px 22px 1fr auto; align-items: center; gap: 8px; height: 28px;
       padding-right: 8px; border-radius: 6px; background: rgba(255, 255, 255, .025); overflow: hidden; }
@@ -142,106 +142,327 @@ main { height: calc(100vh - 52px); padding: 16px; position: relative; }
 .mr img, .mr .ph { width: 22px; height: 22px; border-radius: 5px; object-fit: cover; background: var(--card-2); }
 .mr .n { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
 .mr .n em { font-style: normal; color: var(--text-3); font-size: 11px; margin-left: 4px; }
-.mr .s { font-family: var(--num); font-size: 12px; color: var(--text); }
-.mr .s .d { color: var(--loss); }
+.mr .s { font-family: var(--num); font-size: 12px; }
+.d { color: var(--loss); }
 .pool { padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
 .pc { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; }
 .pc img, .pc .ph { width: 30px; height: 30px; border-radius: 7px; object-fit: cover; background: var(--card-2); border: 1px solid var(--line); }
 .pc-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pc-sub { font-size: 11px; color: var(--text-3); }
 .pc-wr { font-size: 15px; font-weight: 600; text-align: right; }
-
-.c-good { color: var(--win); } .c-bad { color: var(--loss); } .c-mid { color: var(--mid); } .c-dim { color: var(--text-3); }
-
-/* 骨架 */
 .sk { background: linear-gradient(90deg, #10151c 0%, #19212b 50%, #10151c 100%); background-size: 200% 100%;
       animation: shimmer 1.3s linear infinite; border-radius: 6px; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
-/* ---- 个人视图 ---- */
-.solo { height: 100%; display: grid; grid-template-columns: 300px 1fr; gap: 16px; }
-.solo .card { cursor: default; }
-.solo .card:hover { transform: none; }
-.panel { min-height: 0; display: flex; flex-direction: column; border-radius: 14px; background: var(--card); border: 1px solid var(--line); overflow: hidden; }
-.panel-head { display: flex; align-items: baseline; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
-.panel-head h2 { font-size: 15px; font-weight: 600; color: var(--gold-hi); }
-.panel-head span { font-size: 12px; color: var(--text-3); }
-.list { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
-.list > * { flex: none; }
-
-/* ---- 对局行 ---- */
-.g { display: grid; grid-template-columns: 3px 40px 1fr auto auto; align-items: center; gap: 12px;
-     padding: 8px 14px 8px 0; border-radius: 10px; background: rgba(255, 255, 255, .02); overflow: hidden; }
-.g:hover { background: rgba(255, 255, 255, .04); }
-.g .edge { align-self: stretch; margin: -8px 0; }
+/* ================= 对局行（OP.GG 风格） ================= */
+.g { display: grid; grid-template-columns: 3px 44px 40px 1fr 110px 196px 54px; align-items: center; gap: 10px;
+     padding: 7px 14px 7px 0; border-radius: 10px; overflow: hidden; cursor: pointer; transition: filter .15s; }
+.g:hover { filter: brightness(1.18); }
+.g .edge { align-self: stretch; margin: -7px 0; }
+.g.w { background: linear-gradient(90deg, rgba(90, 169, 255, .10), rgba(90, 169, 255, .03) 60%); }
+.g.l { background: linear-gradient(90deg, rgba(255, 93, 108, .10), rgba(255, 93, 108, .03) 60%); }
 .g.w .edge { background: var(--win); } .g.l .edge { background: var(--loss); }
-.g.w { background: linear-gradient(90deg, rgba(90, 169, 255, .08), rgba(255, 255, 255, .015) 40%); }
-.g.l { background: linear-gradient(90deg, rgba(255, 93, 108, .08), rgba(255, 255, 255, .015) 40%); }
-.g img, .g .ph { width: 40px; height: 40px; border-radius: 9px; object-fit: cover; background: var(--card-2); }
-.g .t1 { font-size: 13px; }
-.g .t2 { font-size: 11px; color: var(--text-3); }
+.ch { position: relative; width: 44px; height: 44px; }
+.ch img, .ch .ph { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: var(--card-2); }
+.ch i { position: absolute; right: -3px; bottom: -3px; font: 600 10px var(--num); font-style: normal; background: #000; color: var(--text-2);
+        border-radius: 5px; padding: 0 4px; border: 1px solid var(--line-2); }
+.sp { display: grid; grid-template-columns: 19px 19px; gap: 2px; }
+.sp img, .sp .ph { width: 19px; height: 19px; border-radius: 4px; background: var(--card-2); }
+.g .t1 { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g .t2 { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .g .res { font-size: 12px; font-weight: 600; margin-left: 6px; }
-.g .k { text-align: right; min-width: 92px; }
-.g .k .t1 { font-family: var(--num); font-size: 15px; font-weight: 600; letter-spacing: .02em; }
-.g .k .t1 .d { color: var(--loss); }
-.g .cs { text-align: right; min-width: 64px; }
+.g .k .t1 { font-family: var(--num); font-size: 15px; font-weight: 600; }
+.items { display: flex; gap: 2px; }
+.items img, .items .ph { width: 26px; height: 26px; border-radius: 5px; background: rgba(255, 255, 255, .04); }
+.g .cs { text-align: right; }
 
-/* ---- 右侧抽屉 ---- */
-.scrim { position: absolute; inset: 0; background: rgba(4, 6, 9, .55); backdrop-filter: blur(3px); z-index: 4; }
+/* ================= 抽屉 / 弹窗 ================= */
+.scrim { position: absolute; inset: 0; background: rgba(4, 6, 9, .6); backdrop-filter: blur(3px); z-index: 30; }
 .scrim.enter { animation: fade .2s both; }
-.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 46%); z-index: 5;
-          background: #0b0f14; border-left: 1px solid var(--line-2); display: flex; flex-direction: column;
-          box-shadow: -30px 0 60px rgba(0, 0, 0, .5); }
+@keyframes fade { from { opacity: 0; } }
+.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(760px, 62%); z-index: 31; background: #0b0f14;
+          border-left: 1px solid var(--line-2); display: flex; flex-direction: column; box-shadow: -30px 0 60px rgba(0, 0, 0, .5); }
 .drawer.enter { animation: slide .28s cubic-bezier(.2, .7, .2, 1) both; }
 @keyframes slide { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes fade { from { opacity: 0; } }
-.banner { position: relative; height: 150px; flex: none; overflow: hidden; }
+.banner { position: relative; height: 140px; flex: none; overflow: hidden; }
 .banner img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; }
 .banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 15, 20, .1), #0b0f14); }
-.banner-text { position: absolute; left: 20px; bottom: 14px; right: 60px; z-index: 2; }
+.banner-text { position: absolute; left: 20px; bottom: 12px; right: 60px; z-index: 2; }
 .banner-text b { font-size: 20px; color: #fff; font-weight: 600; text-shadow: 0 2px 10px #000; }
 .banner-text div { font-size: 12px; color: var(--text-2); margin-top: 2px; }
 .x { position: absolute; top: 12px; right: 12px; z-index: 3; width: 32px; height: 32px; border-radius: 50%;
      display: grid; place-items: center; background: rgba(7, 9, 13, .6); color: var(--text-2); }
 .x:hover { color: #fff; background: rgba(7, 9, 13, .85); }
 .x svg { width: 12px; height: 12px; }
+.modal { position: absolute; z-index: 41; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(1080px, calc(100% - 40px));
+         max-height: calc(100% - 30px); display: flex; flex-direction: column; background: #0b0f14; border: 1px solid var(--line-2);
+         border-radius: 16px; box-shadow: 0 30px 80px rgba(0, 0, 0, .6); overflow: hidden; }
+.modal.enter { animation: pop .22s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes pop { from { opacity: 0; transform: translate(-50%, -48%) scale(.98); } }
+.scrim.top { z-index: 40; position: fixed; }
+#overlay .modal { position: fixed; top: calc(50% + 26px); max-height: calc(100vh - 90px); }
+.mhead { display: flex; align-items: center; gap: 14px; padding: 16px 60px 16px 20px; border-bottom: 1px solid var(--line); position: relative; flex-wrap: wrap; }
+.mhead h2 { font-size: 16px; }
+.mhead span { color: var(--text-3); font-size: 12px; }
+.mhead .x { top: 50%; transform: translateY(-50%); right: 14px; }
+.mbody { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.mbody > * { flex: none; }
+.tside { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.tside-h { display: flex; align-items: center; gap: 14px; padding: 9px 14px; font-size: 12px; color: var(--text-2); }
+.tside-h b { font-size: 13px; }
+.tside.w .tside-h { background: rgba(90, 169, 255, .08); } .tside.l .tside-h { background: rgba(255, 93, 108, .08); }
+.tside.w .tside-h b { color: var(--win); } .tside.l .tside-h b { color: var(--loss); }
+.prow, .hcols { display: grid; grid-template-columns: 40px 40px 26px minmax(110px, 1fr) 54px 100px 120px 50px 56px 40px 188px; align-items: center; gap: 10px; padding: 6px 14px; }
+.prow { border-top: 1px solid var(--line); }
+.hcols { font-size: 11px; color: var(--text-3); padding-top: 4px; padding-bottom: 4px; }
+.prow.focus { background: rgba(200, 170, 110, .07); }
+.prow .ch, .prow .ch img, .prow .ch .ph { width: 40px; height: 40px; }
+.prow .who { min-width: 0; }
+.prow .who b { display: block; font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow .who span { font-size: 11px; color: var(--text-3); }
+.keyst { display: grid; gap: 2px; justify-items: center; }
+.keyst img, .keyst .ph { width: 26px; height: 26px; border-radius: 50%; background: #000; }
+.keyst img + img { width: 16px; height: 16px; }
+.score { text-align: center; }
+.score b { font: 600 16px var(--num); }
+.badge { display: inline-block; font: 700 10px var(--num); letter-spacing: .06em; padding: 1px 6px; border-radius: 4px; margin-top: 2px; }
+.badge.mvp { background: var(--gold); color: #1a1408; } .badge.ace { background: #8f6bd8; color: #fff; }
+.bar2 { height: 6px; border-radius: 6px; background: var(--line); overflow: hidden; margin-top: 4px; }
+.bar2 > div { height: 100%; background: linear-gradient(90deg, #d5504f, #ff8a65); }
+.cell { font-size: 12px; text-align: right; }
+.cell small { display: block; font-size: 11px; color: var(--text-3); }
+.prow .items img, .prow .items .ph { width: 24px; height: 24px; }
 
-/* ---- 空状态 ---- */
+/* ================= 我的页 ================= */
+.me-grid { height: 100%; display: grid; grid-template-columns: 290px 1fr; gap: 14px; }
+.me-grid .card { cursor: default; } .me-grid .card:hover { transform: none; box-shadow: none; }
+.me-right { min-height: 0; display: grid; grid-template-rows: 200px 1fr; gap: 14px; }
+.me-top { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 14px; min-height: 0; }
+.me-bottom { display: grid; grid-template-columns: 1fr 1.6fr; gap: 14px; min-height: 0; }
+.posbar { display: grid; grid-template-columns: 34px 1fr 80px; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 9px; }
+.posbar .track { height: 8px; border-radius: 8px; background: var(--line); overflow: hidden; }
+.posbar .track div { height: 100%; background: linear-gradient(90deg, var(--gold-lo), var(--gold)); border-radius: 8px; }
+.posbar .v { text-align: right; color: var(--text-2); }
+.trend svg { width: 100%; height: 112px; display: block; }
+.trend-legend { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.duo { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 5px 0; }
+.duo img, .duo .ph { width: 30px; height: 30px; border-radius: 50%; background: var(--card-2); }
+.duo b { font-weight: 500; font-size: 12px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.duo span { font-size: 11px; color: var(--text-3); }
+table.t { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.t th { white-space: nowrap; position: sticky; top: 0; background: var(--card); text-align: right; font-weight: 400; color: var(--text-3); padding: 8px 10px; border-bottom: 1px solid var(--line); z-index: 1; }
+table.t th:first-child, table.t td:first-child { text-align: left; }
+table.t td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); font-family: var(--num); }
+table.t tr.click { cursor: pointer; } table.t tr.click:hover td { background: rgba(255, 255, 255, .03); }
+.cn { display: flex; align-items: center; gap: 10px; font-family: "Microsoft YaHei UI", sans-serif; }
+.cn img, .cn .ph { width: 28px; height: 28px; border-radius: 7px; background: var(--card-2); }
+.me-grid .g { grid-template-columns: 3px 44px 40px 1fr 100px 188px; }
+.me-grid .g .cs { display: none; }
+
+/* ================= 出装 · 对位页 ================= */
+.build { height: 100%; display: grid; grid-template-columns: 250px 1fr; gap: 14px; }
+.picker { display: flex; flex-direction: column; }
+.search { margin: 12px 12px 8px; height: 34px; border-radius: 9px; background: var(--card-2); border: 1px solid var(--line);
+          color: var(--text); padding: 0 12px; font: inherit; outline: none; }
+.search:focus { border-color: var(--gold-lo); }
+.quick { padding: 0 12px 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.quick button { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; border-radius: 8px; background: rgba(200, 170, 110, .08);
+                border: 1px solid var(--gold-lo); font-size: 12px; color: var(--gold-hi); }
+.quick button.enemy { background: rgba(255, 93, 108, .08); border-color: rgba(255, 93, 108, .35); color: #ffb3ba; }
+.quick img { width: 22px; height: 22px; border-radius: 5px; }
+.cgrid { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 10px 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 4px; align-content: start; }
+.cgrid button { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--text-2); padding: 4px 0; border-radius: 8px; }
+.cgrid button:hover { background: rgba(255, 255, 255, .04); color: var(--text); }
+.cgrid button.on { background: rgba(200, 170, 110, .12); color: var(--gold-hi); }
+.cgrid img, .cgrid .ph { width: 42px; height: 42px; border-radius: 9px; background: var(--card-2); }
+.cgrid span { max-width: 52px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bmain { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-right: 2px; }
+.bhero { position: relative; flex: none; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--card); }
+.bhero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 70% 20%; opacity: .55; }
+.bhero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--card) 18%, rgba(13, 17, 23, .6) 55%, rgba(13, 17, 23, .2)); }
+.bhero-in { position: relative; z-index: 2; padding: 18px 20px; display: flex; gap: 18px; align-items: center; }
+.bhero-in > img { width: 72px; height: 72px; border-radius: 14px; border: 1px solid var(--gold-lo); flex: none; }
+.bhero h1 { font-size: 22px; color: #fff; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.tierb { font: 700 12px var(--num); padding: 2px 8px; border-radius: 6px; color: #0b0f14; display: inline-block; }
+.tb1 { background: #4fd1c5; } .tb2 { background: #5aa9ff; } .tb3 { background: #d9b56b; } .tb4 { background: #b58a6e; } .tb5 { background: #7b7f86; } .tb0 { background: #ff6e6e; }
+.kpis { display: flex; gap: 22px; margin-top: 8px; }
+.kpis div { font-size: 11px; color: var(--text-3); }
+.kpis b { display: block; font: 600 17px var(--num); color: var(--text); }
+.ptabs { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.ptabs button { padding: 4px 10px; border-radius: 7px; font-size: 12px; color: var(--text-2); background: rgba(7, 9, 13, .5); border: 1px solid var(--line-2); }
+.ptabs button.on { color: var(--gold-hi); border-color: var(--gold-lo); background: rgba(200, 170, 110, .14); }
+.ptabs button small { color: var(--text-3); margin-left: 4px; font-family: var(--num); }
+.vs { margin-left: auto; align-self: flex-start; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.vs label { font-size: 11px; color: var(--text-3); }
+select.sel { height: 32px; min-width: 190px; border-radius: 8px; background: #0b0f14; color: var(--text); border: 1px solid var(--line-2);
+             padding: 0 10px; font: inherit; outline: none; }
+.bgrid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+.box { grid-column: span 6; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.box.wide { grid-column: span 12; } .box.third { grid-column: span 4; }
+.box h3 { font-size: 13px; font-weight: 600; color: var(--gold-hi); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.box h3 span { font-weight: 400; font-size: 11px; color: var(--text-3); }
+.box h3 .tbtn { margin-left: auto; height: 26px; }
+.rowi { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.rowi + .rowi { border-top: 1px solid var(--line); }
+.rowi .icons { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; flex-wrap: wrap; }
+.rowi .icons img, .rowi .icons .ph { width: 34px; height: 34px; border-radius: 7px; background: var(--card-2); }
+.rowi .icons .arrow { color: var(--text-3); font-size: 13px; margin: 0 1px; }
+.rowi .st { text-align: right; font-size: 11px; color: var(--text-3); min-width: 74px; }
+.rowi .st b { display: block; font: 600 14px var(--num); color: var(--text); }
+.rowi .st b.c-good { color: var(--win); } .rowi .st b.c-bad { color: var(--loss); }
+.rtabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.rtabs button { padding: 3px 10px; border-radius: 7px; font-size: 12px; color: var(--text-2); border: 1px solid var(--line-2); }
+.rtabs button.on { color: var(--gold-hi); border-color: var(--gold-lo); background: rgba(200, 170, 110, .12); }
+.runes { display: grid; grid-template-columns: 1.2fr 1fr .6fr; gap: 16px; align-items: start; }
+.rcol { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.rcol .sty { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
+.rcol .sty img { width: 22px; height: 22px; }
+.rcol .ks { width: 58px; height: 58px; border-radius: 50%; background: #000; box-shadow: 0 0 0 2px var(--gold-lo); }
+.rcol .rn { display: flex; gap: 8px; }
+.rcol .rn img, .rcol .rn .ph { width: 36px; height: 36px; border-radius: 50%; background: #000; }
+.rcol .sh { display: flex; flex-direction: column; gap: 6px; }
+.rcol .sh img, .rcol .sh .ph { width: 26px; height: 26px; border-radius: 50%; background: #000; }
+.rname { font-size: 12px; color: var(--gold-hi); text-align: center; }
+.skills { display: grid; grid-template-columns: 26px repeat(15, 1fr); gap: 3px; }
+.skills i { font-style: normal; height: 24px; display: grid; place-items: center; border-radius: 5px; font: 600 11px var(--num); background: rgba(255, 255, 255, .03); color: transparent; }
+.skills i.k { color: var(--text-3); background: none; }
+.skills i.on { color: #0b0f14; }
+.skills i.on.Q { background: #5aa9ff; } .skills i.on.W { background: #4fd1c5; } .skills i.on.E { background: #d9b56b; } .skills i.on.R { background: #ff6e6e; }
+.prio { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 12px; color: var(--text-3); }
+.prio b { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font: 700 14px var(--num); color: #0b0f14; }
+.prio b.Q { background: #5aa9ff; } .prio b.W { background: #4fd1c5; } .prio b.E { background: #d9b56b; }
+.clist { display: grid; gap: 4px; }
+.crow { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; padding: 3px 6px; border-radius: 8px; cursor: pointer; }
+.crow:hover { background: rgba(255, 255, 255, .04); }
+.crow img, .crow .ph { width: 32px; height: 32px; border-radius: 7px; background: var(--card-2); }
+.crow b { font-weight: 500; font-size: 12px; }
+.crow span { font-size: 11px; color: var(--text-3); display: block; }
+.crow .r { text-align: right; font: 600 14px var(--num); }
+.mu { display: grid; grid-template-columns: 260px 1fr; gap: 18px; align-items: start; }
+.mu-vs { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 12px; background: var(--card-2); }
+.mu-vs img { width: 52px; height: 52px; border-radius: 10px; }
+.mu-vs .v { font-size: 11px; color: var(--text-3); text-align: center; }
+.mu-vs .v b { display: block; font: 700 24px var(--num); }
+.mu-picks { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; }
+.mu-picks button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 4px 8px; border-radius: 10px; background: var(--card-2);
+                   border: 1px solid var(--line); font-size: 12px; transition: border-color .15s; min-width: 0; }
+.mu-picks button:hover { border-color: var(--gold-lo); }
+.mu-picks button.on { border-color: var(--gold); background: rgba(200, 170, 110, .1); }
+.mu-picks img { width: 40px; height: 40px; border-radius: 9px; }
+.mu-picks span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-picks b { font: 600 14px var(--num); }
+.mu-picks small { color: var(--text-3); font-size: 10px; }
+
+/* ---- OP.GG 风格：符文树 / 出装表 / 技能 ---- */
+.og { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+.og .box { grid-column: span 6; }
+.og .box.rune { grid-column: span 12; }
+.og .box.wide { grid-column: span 12; }
+.og .box.third { grid-column: span 4; }
+.og h4 { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 8px; }
+.rune-wrap { display: grid; grid-template-columns: 220px 1fr; gap: 18px; }
+.rpages { display: flex; flex-direction: column; gap: 6px; }
+.rpage { display: grid; grid-template-columns: 30px 18px 1fr; align-items: center; gap: 6px; padding: 8px; border-radius: 10px;
+         border: 1px solid var(--line); background: rgba(255, 255, 255, .02); text-align: left; transition: border-color .15s, background .15s; }
+.rpage:hover { border-color: var(--line-2); }
+.rpage.on { border-color: var(--gold-lo); background: rgba(200, 170, 110, .08); }
+.rpage img { width: 30px; height: 30px; border-radius: 50%; background: #000; }
+.rpage img + img { width: 18px; height: 18px; }
+.rpage .rs { font-size: 11px; color: var(--text-3); line-height: 1.35; }
+.rpage .rs b { font: 600 13px var(--num); color: var(--text); display: block; }
+.rpage .rs b.c-good { color: var(--win); } .rpage .rs b.c-bad { color: var(--loss); }
+.tree { display: grid; grid-template-columns: 1.15fr 1fr .7fr; gap: 12px; }
+.tcol { border-radius: 12px; background: rgba(255, 255, 255, .02); padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.thead { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--gold-hi); }
+.thead img { width: 24px; height: 24px; }
+.trow { display: flex; justify-content: center; gap: 8px; }
+.trow img, .trow .ph { width: 34px; height: 34px; border-radius: 50%; background: #000; filter: grayscale(1); opacity: .28; transition: opacity .15s; }
+.trow.key img { width: 42px; height: 42px; }
+.trow img.sel { filter: none; opacity: 1; box-shadow: 0 0 0 2px var(--gold); }
+.trow.key img.sel { box-shadow: 0 0 0 2px var(--gold), 0 0 16px rgba(200, 170, 110, .5); }
+.trow.shard img, .trow.shard .ph { width: 24px; height: 24px; }
+.trow.shard img.sel { box-shadow: 0 0 0 1.5px var(--gold); }
+.tsep { width: 70%; height: 1px; background: var(--line); }
+table.ot { width: 100%; border-collapse: collapse; }
+table.ot th { font-size: 11px; font-weight: 400; color: var(--text-3); text-align: right; padding: 0 6px 6px; white-space: nowrap; }
+table.ot th:first-child { text-align: left; }
+table.ot td { padding: 6px; border-top: 1px solid var(--line); text-align: right; font: 600 13px var(--num); white-space: nowrap; }
+table.ot td:first-child { text-align: left; }
+table.ot td small { display: block; font: 400 11px var(--num); color: var(--text-3); }
+table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
+.ic { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.ic img, .ic .ph { width: 32px; height: 32px; border-radius: 7px; background: var(--card-2); }
+.ic .arrow { color: var(--text-3); font-size: 14px; margin: 0 1px; }
+.items3 { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 18px; }
+.late { display: flex; gap: 6px; flex-wrap: wrap; }
+.late div { display: flex; flex-direction: column; align-items: center; gap: 3px; font: 600 11px var(--num); color: var(--text-2); }
+.late img { width: 36px; height: 36px; border-radius: 8px; }
+.sk-prio { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.ab { position: relative; width: 40px; height: 40px; }
+.ab img { width: 40px; height: 40px; border-radius: 9px; border: 1px solid var(--line-2); }
+.ab b { position: absolute; right: -4px; bottom: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 5px; display: grid; place-items: center;
+        font: 700 11px var(--num); color: #0b0f14; }
+.ab b.Q { background: #5aa9ff; } .ab b.W { background: #4fd1c5; } .ab b.E { background: #d9b56b; } .ab b.R { background: #ff6e6e; }
+.sk-prio .arrow { color: var(--text-3); font-size: 16px; }
+.sk-prio .meta { margin-left: auto; text-align: right; font-size: 11px; color: var(--text-3); }
+.sk-prio .meta b { display: block; font: 600 14px var(--num); color: var(--text); }
+.skills { grid-template-columns: 22px repeat(15, 1fr); }
+.skills i.k { display: block; height: 22px; }
+.skills i.k img { width: 22px; height: 22px; border-radius: 5px; }
+.hint { font-size: 12px; color: var(--text-3); }
+.warn { font-size: 12px; color: var(--mid); }
+.trendline svg { width: 100%; height: 110px; display: block; }
+
+/* ================= 梯队页 ================= */
+.tierpage { height: 100%; display: flex; flex-direction: column; gap: 12px; }
+.tierbar { display: flex; gap: 12px; align-items: center; flex: none; }
+.tierpage .panel { flex: 1; }
+.rk { font: 600 13px var(--num); color: var(--text-3); width: 26px; display: inline-block; }
+.chg { font: 600 11px var(--num); }
+
+/* ================= 空状态 / 提示 ================= */
 .empty { height: 100%; display: grid; place-items: center; text-align: center; position: relative; overflow: hidden; }
-.empty::before { content: ""; position: absolute; width: 900px; height: 900px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(200, 170, 110, .07), transparent 60%); }
+.empty::before { content: ""; position: absolute; width: 900px; height: 900px; border-radius: 50%; background: radial-gradient(circle, rgba(200, 170, 110, .07), transparent 60%); }
 .empty-inner { position: relative; }
 .rings { width: 120px; height: 120px; margin: 0 auto 28px; position: relative; }
-.rings i { position: absolute; inset: 0; border: 1px solid rgba(200, 170, 110, .45); transform: rotate(45deg); border-radius: 14px;
-           animation: pulse 2.8s ease-out infinite; }
+.rings i { position: absolute; inset: 0; border: 1px solid rgba(200, 170, 110, .45); transform: rotate(45deg); border-radius: 14px; animation: pulse 2.8s ease-out infinite; }
 .rings i:nth-child(2) { animation-delay: .9s; } .rings i:nth-child(3) { animation-delay: 1.8s; }
 .rings b { position: absolute; inset: 42px; transform: rotate(45deg); background: var(--gold); border-radius: 5px; box-shadow: 0 0 30px rgba(200, 170, 110, .6); }
 @keyframes pulse { from { transform: rotate(45deg) scale(.35); opacity: 1; } to { transform: rotate(45deg) scale(1); opacity: 0; } }
 .empty h2 { font-size: 22px; font-weight: 600; color: var(--gold-hi); letter-spacing: .08em; }
 .empty p { color: var(--text-2); margin: 10px 0 26px; }
 .empty .tbtn.primary { height: 38px; padding: 0 20px; font-size: 13px; }
-
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .1); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+.loading { display: grid; place-items: center; height: 100%; color: var(--text-3); text-align: center; }
+.spin { width: 28px; height: 28px; border: 2px solid var(--line-2); border-top-color: var(--gold); border-radius: 50%; animation: rot .8s linear infinite; margin: 0 auto 10px; }
+@keyframes rot { to { transform: rotate(360deg); } }
+.toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 60; padding: 10px 18px; border-radius: 10px;
+         background: #1b2330; border: 1px solid var(--line-2); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); font-size: 13px; animation: pop2 .2s both; }
+.toast.bad { border-color: rgba(255, 93, 108, .5); }
+@keyframes pop2 { from { opacity: 0; transform: translate(-50%, 8px); } }
 </style>
 </head>
 <body>
 <div class="titlebar">
   <div class="drag brand pywebview-drag-region"><div class="mark pywebview-drag-region"></div><span class="brand-name pywebview-drag-region">战绩速览</span></div>
+  <div class="nav" id="nav">
+    <button data-tab="team">队伍</button><button data-tab="me">我的</button>
+    <button data-tab="build">出装 · 对位</button><button data-tab="tier">梯队</button>
+  </div>
   <div class="drag status pywebview-drag-region"><span class="led" id="led"></span><span class="status-text pywebview-drag-region" id="status">正在连接…</span></div>
   <div class="drag grow pywebview-drag-region"></div>
   <div class="tools">
-    <div class="seg" id="mode">
-      <button data-v="all">全部</button><button data-v="rank">排位</button>
-      <button data-v="normal">匹配</button><button data-v="aram">大乱斗</button>
+    <div class="seg" id="mode" data-for="team me">
+      <button data-v="all">全部</button><button data-v="rank">排位</button><button data-v="normal">匹配</button><button data-v="aram">大乱斗</button>
     </div>
-    <div class="seg count" id="count">
+    <div class="seg count" id="count" data-for="team me">
       <button data-v="20">20</button><button data-v="50">50</button><button data-v="100">100</button><button data-v="200">200</button>
     </div>
-    <span class="vsep"></span>
+    <div class="seg" id="otier" data-for="build tier">
+      <button data-v="all">全段位</button><button data-v="platinum_plus">铂金+</button><button data-v="emerald_plus">翡翠+</button>
+      <button data-v="diamond_plus">钻石+</button><button data-v="master_plus">大师+</button>
+    </div>
     <button class="tbtn" id="refresh" title="重新查询"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
     <button class="tbtn" id="pin" title="窗口置顶"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg></button>
-    <button class="tbtn primary" id="self">我的战绩</button>
   </div>
   <div class="winctl" id="winctl">
     <button data-a="minimize" title="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg></button>
@@ -251,30 +472,62 @@ main { height: calc(100vh - 52px); padding: 16px; position: relative; }
 </div>
 
 <main id="main"></main>
+<div id="overlay"></div>
 
 <script>
+const TOKEN = "__APP_TOKEN__";
+const api = (path, opts = {}) => fetch(path, { ...opts, headers: { "X-App-Token": TOKEN } });
+async function getJSON(path) {
+  const r = await api(path);
+  const d = await r.json();
+  if (!r.ok || (d && d.error)) throw new Error((d && d.error) || ("HTTP " + r.status));
+  return d;
+}
+
 const QUEUES = { 420: "单双排", 440: "灵活排", 400: "匹配", 430: "匹配", 490: "快速匹配", 450: "大乱斗",
                  1700: "斗魂竞技场", 1900: "无限火力", 900: "无限乱斗", 830: "人机", 840: "人机", 850: "人机" };
 const MODES = { all: null, rank: [420, 440], normal: [400, 430, 490], aram: [450] };
 const MODE_NAMES = { all: "", rank: "排位", normal: "匹配", aram: "大乱斗" };
+const POS = { top: "上单", jungle: "打野", middle: "中单", bottom: "ADC", utility: "辅助" };
+const POS_ORDER = ["top", "jungle", "middle", "bottom", "utility"];
+const OTIER_NAMES = { all: "全段位", platinum_plus: "铂金以上", emerald_plus: "翡翠以上", diamond_plus: "钻石以上", master_plus: "大师以上" };
 const TIER_COLORS = { IRON: "#8a7d76", BRONZE: "#c08560", SILVER: "#aab7c2", GOLD: "#e6be5f", PLATINUM: "#4fc7b5",
   EMERALD: "#43c985", DIAMOND: "#86aeff", MASTER: "#c784ff", GRANDMASTER: "#ff6e6e", CHALLENGER: "#f6d683" };
 
-const TOKEN = "__APP_TOKEN__";
-const api = (path, opts = {}) => fetch(path, { ...opts, headers: { "X-App-Token": TOKEN } });
-let state = null, mode = "all", selected = null, lastKey = "", drawerFresh = false;
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+
+let state = null, assets = { champions: {}, items: {}, perks: {}, styles: {}, spells: {} }, assetsFor = null;
+let tab = store.get("tab", "team"), mode = store.get("mode", "all"), otier = store.get("otier", "emerald_plus");
+let selected = null, lastKey = "", lastPhase = null;
+const fresh = { drawer: false, modal: false };
 const seen = new Set();
-try { mode = localStorage.getItem("mode") || "all"; } catch (e) {}
+// 出装页状态
+const B = { champ: store.get("bchamp", 145), pos: null, target: null, mode: "ranked", data: null, err: null, loading: false,
+            mu: null, runeIdx: 0, search: "", auto: true, autoKey: null, reqId: 0 };
+// 梯队页状态
+const T = { pos: store.get("tpos", "bottom"), mode: "ranked", rows: null, key: null, err: null, loading: false };
+let modal = null;   // 单局详情 { id, focus, data, err }
+const duosCache = {};
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const champName = id => (state?.champions || {})[id] || "";
+const champName = id => assets.champions[id] || "";
 const pct = x => Math.round(x * 100);
+const pct1 = x => x == null ? "--" : (x * 100).toFixed(1) + "%";
 const tone = (wr, n) => n < 5 ? "c-dim" : wr >= .55 ? "c-good" : wr < .45 ? "c-bad" : "c-mid";
+const wrTone = wr => wr == null ? "" : wr >= .52 ? "c-good" : wr < .48 ? "c-bad" : "";
 const art = (kind, id) => `/art/${kind}/${id}`;
-const img = (kind, id, cls = "") => id
-  ? `<img class="${cls}" src="${art(kind, id)}" alt="" onerror="this.style.visibility='hidden'">`
-  : `<div class="ph ${cls}"></div>`;
+function img(kind, id, cls = "", title = "") {
+  if (!id) return `<div class="ph ${cls}"></div>`;
+  return `<img class="${cls}" src="${art(kind, id)}" alt="" title="${esc(title)}" onerror="this.style.visibility='hidden'">`;
+}
+const itemImg = id => img("item", id, "", assets.items[id]);
+const perkImg = (id, cls = "") => img("perk", id, cls, assets.perks[id]);
+const spellImg = id => img("spell", id, "", assets.spells[id]);
+const styleImg = id => img("style", id, "", assets.styles[id]);
 
 function ago(t) {
   const m = (Date.now() - t) / 60000;
@@ -283,28 +536,38 @@ function ago(t) {
   if (m < 43200) return Math.round(m / 1440) + " 天前";
   return new Date(t).toLocaleDateString("zh-CN");
 }
+let toastTimer;
+function toast(msg, bad = false) {
+  document.querySelector(".toast")?.remove();
+  const el = document.createElement("div");
+  el.className = "toast" + (bad ? " bad" : "");
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.remove(), 2600);
+}
 
+/* ---------------- 战绩统计 ---------------- */
 function stats(p) {
   const qs = MODES[mode];
   const gs = (p.games || []).filter(g => g.dur >= 300 && (!qs || qs.includes(g.q))).slice(0, state.settings.games);
   const n = gs.length;
   if (!n) return { n: 0, gs, champs: [] };
   const wins = gs.filter(g => g.win).length;
-  const sum = k => gs.reduce((a, g) => a + g[k], 0);
+  const sum = k => gs.reduce((a, g) => a + (g[k] || 0), 0);
   const [k, d, a] = ["k", "d", "a"].map(sum);
   const by = {};
   for (const g of gs) {
-    const c = by[g.c] ??= { id: g.c, n: 0, w: 0 };
-    c.n++; c.w += g.win;
+    const c = by[g.c] ??= { id: g.c, n: 0, w: 0, k: 0, d: 0, a: 0, cs: 0, min: 0, dmg: 0 };
+    c.n++; c.w += g.win; c.k += g.k; c.d += g.d; c.a += g.a; c.cs += g.cs; c.min += g.dur / 60; c.dmg += g.dmg || 0;
   }
   const champs = Object.values(by).sort((x, y) => y.n - x.n || y.w - x.w);
   let streak = 0;
   for (const g of gs) { if (g.win === gs[0].win) streak++; else break; }
   const all = (p.games || []).length;
   return { n, gs, wins, wr: wins / n, kda: (k + a) / Math.max(d, 1), avg: [k / n, d / n, a / n],
-           champs, streak, streakWin: gs[0].win, aramShare: all ? (p.games.filter(g => g.q === 450).length / all) : 0 };
+           champs, streak, streakWin: gs[0].win, aramShare: all ? p.games.filter(g => g.q === 450).length / all : 0 };
 }
-
 function notes(p, s) {
   const t = [];
   if (s.streak >= 3) t.push(s.streakWin ? ["good", `${s.streak} 连胜`] : ["bad", `${s.streak} 连败`]);
@@ -319,7 +582,6 @@ function notes(p, s) {
   if (mode === "all" && s.aramShare > .5) t.push(["", "常玩大乱斗"]);
   return t.slice(0, 3);
 }
-
 function rankLine(r) {
   if (!r) return `<span class="c-dim">段位未知</span>`;
   if (!r.tier) return `<span class="gem" style="background:#3a3f47"></span><span class="c-dim">${esc(r.text)}</span>`;
@@ -329,9 +591,9 @@ function rankLine(r) {
     + (games ? `<span class="c-dim num">· 赛季 ${pct(r.wins / games)}%</span>` : "");
 }
 
-function hero(p, s) {
+/* ---------------- 玩家卡 ---------------- */
+function hero(p, s, solo = false) {
   const artId = p.champ || s?.champs?.[0]?.id;
-  const solo = state.view === "self";
   const ghost = !p.champ && !solo;
   const pick = p.champ ? `<div class="pick-name">${esc(champName(p.champ))}</div>`
              : solo && artId ? `<div class="pick-name">常用 · ${esc(champName(artId))}</div>`
@@ -344,15 +606,13 @@ function hero(p, s) {
       <div class="rank">${p.loading ? '<span class="c-dim">正在读取段位…</span>' : rankLine(p.rank)}</div>
     </div></div>`;
 }
-
-function skeleton(p) {
-  return `${hero(p, null)}<div class="body">
+function skeleton(p, solo) {
+  return `${hero(p, null, solo)}<div class="body">
     <div class="headline"><div class="sk" style="width:90px;height:40px"></div><div class="sk" style="width:70px;height:30px"></div></div>
     <div class="sk" style="height:4px;margin:14px 0 18px"></div><div class="sk" style="height:16px"></div>
     <div class="mini">${'<div class="sk" style="height:28px;flex:none"></div>'.repeat(6)}</div>
     <div class="pool">${'<div class="sk" style="height:30px"></div>'.repeat(3)}</div></div>`;
 }
-
 function cardBody(p, s) {
   if (p.error) return `<div class="body"><p class="c-dim" style="margin-top:12px">${esc(p.error)}</p></div>`;
   if (!s.n) return `<div class="body"><p class="c-dim" style="margin-top:12px">最近没有${MODE_NAMES[mode]}对局</p></div>`;
@@ -379,111 +639,512 @@ function cardBody(p, s) {
       <div class="s">${g.k}/<span class="d">${g.d}</span>/${g.a}</div></div>`).join("")}</div>
     <div class="pool">${pool}</div></div>`;
 }
-
-function card(p, clickable = true) {
+function card(p, { clickable = true, solo = false } = {}) {
   const enter = seen.has(p.key) ? "" : " enter";
   const cls = `card${p.me ? " me" : ""}${selected === p.key ? " sel" : ""}${enter}`;
   const i = (state.players || []).indexOf(p);
   const attrs = `class="${cls}" style="animation-delay:${Math.max(0, i) * 60}ms"${clickable && !p.loading && !p.error ? ` data-key="${esc(p.key)}"` : ""}`;
-  if (p.loading) return `<div ${attrs}>${skeleton(p)}</div>`;
+  if (p.loading) return `<div ${attrs}>${skeleton(p, solo)}</div>`;
   const s = stats(p);
-  return `<div ${attrs}>${hero(p, s)}${cardBody(p, s)}</div>`;
+  return `<div ${attrs}>${hero(p, s, solo)}${cardBody(p, s)}</div>`;
 }
 
-function gameRows(s, limit = 200) {
-  return s.gs.slice(0, limit).map(g => `<div class="g ${g.win ? "w" : "l"}"><div class="edge"></div>${img("square", g.c)}
+/* ---------------- 对局行（OP.GG 风格） ---------------- */
+function gameRow(g, puuid) {
+  const min = Math.max(g.dur / 60, 1);
+  const items = (g.items || []).map(id => id ? itemImg(id) : '<div class="ph"></div>').join("");
+  return `<div class="g ${g.win ? "w" : "l"}" data-game="${g.id}" data-focus="${esc(puuid || "")}"><div class="edge"></div>
+      <div class="ch">${img("square", g.c)}${g.lvl ? `<i>${g.lvl}</i>` : ""}</div>
+      <div class="sp">${(g.spells || []).map(spellImg).join("")}${perkImg(g.perk)}${styleImg(g.sub)}</div>
       <div style="min-width:0"><div class="t1">${esc(champName(g.c))}<span class="res ${g.win ? "c-good" : "c-bad"}">${g.win ? "胜利" : "失败"}</span></div>
-        <div class="t2">${esc(QUEUES[g.q] || "其他")} · ${Math.round(g.dur / 60)} 分钟 · ${ago(g.t)}</div></div>
-      <div class="k"><div class="t1">${g.k} / <span class="d">${g.d}</span> / ${g.a}</div><div class="t2 num">KDA ${((g.k + g.a) / Math.max(g.d, 1)).toFixed(1)}</div></div>
-      <div class="cs"><div class="t1 num">${g.cs}</div><div class="t2">补刀</div></div></div>`).join("");
+        <div class="t2">${esc(QUEUES[g.q] || "其他")} · ${Math.round(g.dur / 60)} 分钟 · ${ago(g.t)}${g.pos ? " · " + POS[g.pos] : ""}</div></div>
+      <div class="k"><div class="t1">${g.k} / <span class="d">${g.d}</span> / ${g.a}</div><div class="t2 num">KDA ${((g.k + g.a) / Math.max(g.d, 1)).toFixed(2)}</div></div>
+      <div class="items">${items}</div>
+      <div class="cs"><div class="t1 num">${g.cs}</div><div class="t2 num">${(g.cs / min).toFixed(1)}/分</div></div></div>`;
 }
 
+/* ---------------- 队伍页 ---------------- */
 function drawer(p) {
   const s = stats(p);
   const bannerId = p.champ || s.champs[0]?.id;
-  const cls = drawerFresh ? "drawer enter" : "drawer";
-  drawerFresh = false;
-  return `<div class="scrim${cls.includes("enter") ? " enter" : ""}" data-close="1"></div><aside class="${cls}">
+  const enter = fresh.drawer ? " enter" : "";
+  fresh.drawer = false;
+  return `<div class="scrim${enter}" data-close="drawer"></div><aside class="drawer${enter}">
     <div class="banner">${bannerId ? `<img src="${art("splash", bannerId)}" alt="" onerror="this.remove()">` : ""}
-      <div class="banner-text"><b>${esc(p.name)}</b><div>最近 ${s.n} 场${MODE_NAMES[mode]} · ${s.n ? pct(s.wr) + "% 胜率 · KDA " + s.kda.toFixed(2) : "没有对局"}</div></div>
-      <button class="x" data-close="1"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
-    <div class="list">${gameRows(s) || '<p class="c-dim" style="padding:20px">没有对局</p>'}</div></aside>`;
+      <div class="banner-text"><b>${esc(p.name)}</b><div>最近 ${s.n} 场${MODE_NAMES[mode]} · ${s.n ? pct(s.wr) + "% 胜率 · KDA " + s.kda.toFixed(2) : "没有对局"} · 点任意一局看 10 人详情</div></div>
+      <button class="x" data-close="drawer"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
+    <div class="list" data-scroll="drawer">${s.gs.map(g => gameRow(g, p.puuid)).join("") || '<p class="c-dim" style="padding:20px">没有对局</p>'}</div></aside>`;
 }
-
 function emptyView() {
   const c = state?.connected;
   return `<div class="empty"><div class="empty-inner"><div class="rings"><i></i><i></i><i></i><b></b></div>
     <h2>${c ? "等待进入选英雄" : "未连接到客户端"}</h2>
-    <p>${c ? "进入选英雄后会自动查询队友战绩，窗口会弹到最前面" : "请先登录英雄联盟客户端，连接后这里会自动更新"}</p>
-    ${c ? '<button class="tbtn primary" data-act="self">先看看我的战绩</button>' : ""}</div></div>`;
+    <p>${c ? "进入选英雄后会自动查询队友战绩，并推荐对位英雄、符文和出装" : "请先登录英雄联盟客户端。出装和梯队页不开客户端也能用"}</p>
+    ${c ? '<button class="tbtn primary" data-tab="me">看看我的战绩</button>' : '<button class="tbtn primary" data-tab="tier">看看版本梯队</button>'}</div></div>`;
+}
+function teamView() {
+  const players = state.view === "team" ? state.players || [] : [];
+  if (!players.length) return emptyView();
+  if (!players.some(p => p.key === selected && !p.loading)) selected = null;
+  const sel = players.find(p => p.key === selected);
+  return `<div class="team">${players.map(p => card(p)).join("")}</div>${sel ? drawer(sel) : ""}`;
 }
 
+/* ---------------- 我的页 ---------------- */
+function trendSvg(gs) {
+  // 滚动胜率（最近 10 场为一个窗口），从旧到新
+  const arr = gs.slice().reverse(), pts = [];
+  for (let i = 0; i < arr.length; i++) {
+    const w = arr.slice(Math.max(0, i - 9), i + 1);
+    pts.push(w.filter(g => g.win).length / w.length);
+  }
+  if (pts.length < 2) return '<p class="hint">对局太少</p>';
+  const W = 400, H = 112, x = i => i / (pts.length - 1) * W, y = v => H - 8 - v * (H - 16);
+  const d = pts.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <line x1="0" x2="${W}" y1="${y(.5)}" y2="${y(.5)}" stroke="rgba(255,255,255,.14)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+    <path d="${d}L${W},${H}L0,${H}Z" fill="rgba(200,170,110,.10)"/>
+    <path d="${d}" fill="none" stroke="#c8aa6e" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function meView() {
+  const p = state.view === "self" ? (state.players || [])[0] : null;
+  if (!p) return `<div class="loading"><div><div class="spin"></div>${state.connected ? "正在读取你的战绩…" : "未连接到客户端"}</div></div>`;
+  if (p.loading) return `<div class="me-grid">${card(p, { clickable: false, solo: true })}<div class="loading"><div><div class="spin"></div>正在读取…</div></div></div>`;
+  if (p.error) return `<div class="me-grid">${card(p, { clickable: false, solo: true })}<div class="loading">${esc(p.error)}</div></div>`;
+  const s = stats(p);
+  const byPos = {};
+  for (const g of s.gs) if (g.pos) { const x = byPos[g.pos] ??= { n: 0, w: 0 }; x.n++; x.w += g.win; }
+  const posMax = Math.max(1, ...Object.values(byPos).map(x => x.n));
+  const posHtml = POS_ORDER.map(k => {
+    const x = byPos[k] || { n: 0, w: 0 };
+    return `<div class="posbar"><span>${POS[k]}</span><div class="track"><div style="width:${x.n / posMax * 100}%"></div></div>
+      <span class="v num">${x.n} 场 ${x.n ? `<b class="${tone(x.w / x.n, x.n)}">${pct(x.w / x.n)}%</b>` : ""}</span></div>`;
+  }).join("") + (Object.keys(byPos).length ? "" : '<p class="hint">大乱斗等模式没有位置信息</p>');
+  const duos = duosCache[p.puuid];
+  if (!(p.puuid in duosCache) && p.puuid) loadDuos(p.puuid);
+  const duoHtml = duos === undefined ? '<div class="spin" style="margin-top:20px"></div>'
+    : duos.error ? `<p class="hint">${esc(duos.error)}</p>`
+    : !duos.length ? '<p class="hint">最近 20 场没有固定队友</p>'
+    : duos.map(d => `<div class="duo">${img("profile", d.icon)}<div style="min-width:0"><b>${esc(d.name)}<span> #${esc(d.tag)}</span></b>
+        <span class="num">一起 ${d.n} 场 · ${d.w} 胜</span></div><b class="num ${tone(d.w / d.n, 5)}">${pct(d.w / d.n)}%</b></div>`).join("");
+  const rows = s.champs.map(c => `<tr class="click" data-build="${c.id}">
+      <td><div class="cn">${img("square", c.id)}${esc(champName(c.id))}</div></td><td>${c.n}</td>
+      <td class="${tone(c.w / c.n, c.n >= 3 ? 5 : 0)}">${pct(c.w / c.n)}%</td>
+      <td>${((c.k + c.a) / Math.max(c.d, 1)).toFixed(2)}</td><td>${(c.cs / Math.max(c.min, 1)).toFixed(1)}</td>
+      <td>${Math.round(c.dmg / c.n).toLocaleString()}</td></tr>`).join("");
+  return `<div class="me-grid">${card(p, { clickable: false, solo: true })}
+    <div class="me-right">
+      <div class="me-top">
+        <section class="panel"><div class="panel-head"><h2>位置分布</h2><span>近 ${s.n} 场</span></div><div class="panel-body">${posHtml}</div></section>
+        <section class="panel"><div class="panel-head"><h2>胜率走势</h2><span>每 10 场滚动</span></div>
+          <div class="panel-body trend">${trendSvg(s.gs)}<div class="trend-legend"><span>较早</span><span>虚线 = 50%</span><span>最近</span></div></div></section>
+        <section class="panel"><div class="panel-head"><h2>常一起玩</h2><span>近 20 场</span></div><div class="panel-body" style="padding-top:6px">${duoHtml}</div></section>
+      </div>
+      <div class="me-bottom">
+        <section class="panel"><div class="panel-head"><h2>英雄数据</h2><span>点英雄看出装</span></div>
+          <div class="panel-body" style="padding:0" data-scroll="champs"><table class="t"><thead><tr><th>英雄</th><th>场次</th><th>胜率</th><th>KDA</th><th>补刀/分</th><th>场均伤害</th></tr></thead>
+          <tbody>${rows}</tbody></table></div></section>
+        <section class="panel"><div class="panel-head"><h2>最近对局</h2><span>${s.n} 场${MODE_NAMES[mode]} · 点开看 10 人详情和评分</span></div>
+          <div class="list" data-scroll="mylist">${s.gs.map(g => gameRow(g, p.puuid)).join("")}</div></section>
+      </div>
+    </div></div>`;
+}
+async function loadDuos(puuid) {
+  duosCache[puuid] = undefined;
+  try { duosCache[puuid] = await getJSON(`/api/duos?puuid=${encodeURIComponent(puuid)}`); }
+  catch (e) { duosCache[puuid] = { error: "读取失败：" + e.message }; }
+  if (tab === "me") render();
+}
+
+/* ---------------- 出装 · 对位页 ---------------- */
+async function loadBuild() {
+  const id = ++B.reqId;
+  B.loading = true; B.err = null; B.runeIdx = 0;
+  if (tab === "build") render();
+  try {
+    const q = new URLSearchParams({ champ: B.champ, mode: B.mode, tier: otier });
+    if (B.pos) q.set("pos", B.pos);
+    if (B.target && B.mode === "ranked") q.set("target", B.target);
+    const d = await getJSON("/api/opgg/build?" + q);
+    if (id !== B.reqId) return;
+    B.data = d; B.pos = d.pos;
+    B.mu = null;
+    if (B.target && B.pos && B.mode === "ranked") {
+      const m = new URLSearchParams({ champ: B.champ, pos: B.pos, enemy: B.target, tier: otier });
+      B.mu = await getJSON("/api/opgg/matchup?" + m).catch(e => ({ error: e.message }));
+    }
+  } catch (e) { if (id === B.reqId) B.err = e.message; }
+  if (id !== B.reqId) return;
+  B.loading = false;
+  if (tab === "build") render();
+}
+/* 进入选英雄时：用我的英雄和位置，并推断对位的敌人 */
+async function autoBuild() {
+  const pk = state.pick || {};
+  B.champ = pk.champ || B.champ; B.pos = pk.pos || null; B.target = null; B.mode = "ranked";
+  if (pk.pos && pk.enemies?.length) {
+    try {
+      const q = new URLSearchParams({ pos: pk.pos, enemies: pk.enemies.join(","), tier: otier });
+      if (pk.champ) q.set("champ", pk.champ);
+      const mu = await getJSON("/api/opgg/matchup?" + q);
+      if (mu.enemy) B.target = mu.enemy;
+    } catch (e) {}
+  }
+  loadBuild();
+}
+function itemIcons(ids, arrows = true) {
+  return `<div class="ic">${(ids || []).map((id, i) => (arrows && i ? '<span class="arrow">›</span>' : "") + itemImg(id)).join("")}</div>`;
+}
+function itemTable(title, rows, arrows = true) {
+  if (!rows?.length) return "";
+  return `<div><h4>${title}</h4><table class="ot"><thead><tr><th></th><th>选取率</th><th>胜率</th></tr></thead><tbody>
+    ${rows.map(x => `<tr><td>${itemIcons(x.ids, arrows)}</td><td>${pct1(x.pick)}<small>${(x.play || 0).toLocaleString()} 场</small></td>
+      <td class="${wrTone(x.win)}">${pct1(x.win)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function runeBox(d) {
+  const r = d.runes[B.runeIdx] || d.runes[0];
+  if (!r) return `<div class="box rune"><h3>推荐符文</h3><p class="hint">暂无数据</p></div>`;
+  const pages = d.runes.map((x, i) => `<button class="rpage${i === B.runeIdx ? " on" : ""}" data-rune="${i}">
+      ${perkImg(x.primaryRunes[0])}${styleImg(x.secondary)}
+      <div class="rs"><b class="${wrTone(x.win)}">${pct1(x.win)}</b>选取 ${pct1(x.pick)} · ${(x.play || 0).toLocaleString()} 场</div></button>`).join("");
+  const sel = new Set([...r.primaryRunes, ...r.secondaryRunes]);
+  const row = (ids, cls = "") => `<div class="trow ${cls}">${(ids || []).map(id => perkImg(id, sel.has(id) ? "sel" : "")).join("")}</div>`;
+  const pRows = assets.slots?.[r.primary] || [];
+  const sRows = (assets.slots?.[r.secondary] || []).slice(1);
+  const shardRows = assets.shards || [];
+  const shardHtml = shardRows.length
+    ? shardRows.map((ids, i) => `<div class="trow shard">${ids.map(id => perkImg(id, r.shards?.[i] === id ? "sel" : "")).join("")}</div>`).join("")
+    : `<div class="trow shard">${(r.shards || []).map(id => perkImg(id, "sel")).join("")}</div>`;
+  return `<div class="box rune"><h3>推荐符文 <span>${esc(assets.perks[r.primaryRunes[0]] || "")} · 胜率 ${pct1(r.win)} · 选取 ${pct1(r.pick)}</span>
+      <button class="tbtn primary" data-import ${state.connected ? "" : "disabled title='需要连接客户端'"}>导入到客户端</button></h3>
+    <div class="rune-wrap"><div class="rpages">${pages}</div>
+      <div class="tree">
+        <div class="tcol"><div class="thead">${styleImg(r.primary)}${esc(assets.styles[r.primary] || "")}</div>
+          ${pRows.length ? row(pRows[0], "key") + '<div class="tsep"></div>' + pRows.slice(1).map(ids => row(ids)).join("")
+                         : row(r.primaryRunes.slice(0, 1), "key") + row(r.primaryRunes.slice(1))}</div>
+        <div class="tcol"><div class="thead">${styleImg(r.secondary)}${esc(assets.styles[r.secondary] || "")}</div>
+          ${sRows.length ? sRows.map(ids => row(ids)).join("") : row(r.secondaryRunes)}</div>
+        <div class="tcol"><div class="thead">属性碎片</div>${shardHtml}</div>
+      </div></div></div>`;
+}
+function skillBox(d) {
+  const s = d.skills;
+  if (!s) return `<div><h4>技能加点</h4><p class="hint">暂无数据</p></div>`;
+  const ab = k => `<div class="ab"><img src="/art/ability/${d.champ}/${k.toLowerCase()}" alt="" onerror="this.style.visibility='hidden'"><b class="${k}">${k}</b></div>`;
+  const grid = ["Q", "W", "E", "R"].map(k => `<i class="k"><img src="/art/ability/${d.champ}/${k.toLowerCase()}" alt="${k}" title="${k}" onerror="this.replaceWith(document.createTextNode('${k}'))"></i>`
+    + Array.from({ length: 15 }, (_, i) => `<i class="${s.order?.[i] === k ? "on " + k : ""}">${i + 1}</i>`).join("")).join("");
+  return `<div><h4>技能加点</h4>
+    <div class="sk-prio">${(s.priority || []).map((k, i) => (i ? '<span class="arrow">›</span>' : "") + ab(k)).join("")}
+      <div class="meta"><b class="${wrTone(s.win)}">${pct1(s.win)}</b>胜率 · 选取 ${pct1(s.pick)}</div></div>
+    <div class="skills">${grid}</div></div>`;
+}
+function spellBox(d) {
+  if (!d.spells?.length) return "";
+  return `<div><h4>召唤师技能</h4><table class="ot"><thead><tr><th></th><th>选取率</th><th>胜率</th></tr></thead><tbody>
+    ${d.spells.map(x => `<tr><td><div class="ic">${x.ids.map(spellImg).join("")}<span class="c-dim" style="font:400 12px 'Microsoft YaHei UI';margin-left:6px">${x.ids.map(id => esc(assets.spells[id] || "")).join(" + ")}</span></div></td>
+      <td>${pct1(x.pick)}<small>${(x.play || 0).toLocaleString()} 场</small></td><td class="${wrTone(x.win)}">${pct1(x.win)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function itemsBox(d) {
+  const late = (d.last || []).map(x => `<div>${itemImg(x.ids[0])}${pct1(x.pick)}</div>`).join("");
+  return `<div class="box wide"><h3>出装${B.target ? ` <span>针对 ${esc(champName(B.target))}</span>` : ""}</h3>
+    <div class="items3">${itemTable("出门装", d.starter, false)}${itemTable("鞋子", d.boots, false)}${itemTable("核心出装", d.core)}</div>
+    ${late ? `<h4 style="margin-top:14px">后期可选（按选取率）</h4><div class="late">${late}</div>` : ""}</div>`;
+}
+function counterList(list, good) {
+  return list.map(c => `<div class="crow" data-target="${c.id}" title="查看针对 ${esc(champName(c.id))} 的出装">${img("square", c.id)}<div><b>${esc(champName(c.id))}</b>
+      <span class="num">${c.play.toLocaleString()} 场</span></div><div class="r ${good ? "c-good" : "c-bad"}">${pct1(c.win)}</div></div>`).join("")
+    || '<p class="hint">暂无数据</p>';
+}
+function trendBox(d) {
+  const t = d.trend || [];
+  if (t.length < 2) return "";
+  const W = 300, H = 110, vals = t.map(x => x.win), lo = Math.min(...vals) - .005, hi = Math.max(...vals) + .005;
+  const x = i => 16 + i / (t.length - 1) * (W - 32), y = v => H - 24 - (v - lo) / (hi - lo) * (H - 40);
+  const path = vals.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  const dots = vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="#c8aa6e"/><text x="${x(i)}" y="${H - 6}" fill="#6c6f75" font-size="10" text-anchor="middle">${t[i].v}</text>`).join("");
+  return `<div class="box third"><h3>版本胜率走势</h3><div class="trendline"><svg viewBox="0 0 ${W} ${H}">
+    <path d="${path}" fill="none" stroke="#c8aa6e" stroke-width="2"/>${dots}</svg></div>
+    <p class="hint num">${t.slice(-3).map(x => pct1(x.win)).join(" → ")}</p></div>`;
+}
+function matchupBox() {
+  if (B.mode !== "ranked") return "";
+  const pk = state.pick || {};
+  if (!B.target) {
+    return `<div class="box wide"><h3>对位推荐</h3><p class="hint">在右上角选择对线的对手，就能看到克制它的英雄，以及针对它的符文和出装。${pk.enemies?.length ? "" : "进入选英雄后会自动识别对面的对位英雄。"}也可以点下面“难打 / 好打的对手”里的英雄。</p></div>`;
+  }
+  const mu = B.mu;
+  if (!mu) return `<div class="box wide"><h3>对位推荐</h3><div class="spin"></div></div>`;
+  if (mu.error) return `<div class="box wide"><h3>对位推荐</h3><p class="hint">读取失败：${esc(mu.error)}</p></div>`;
+  const mine = mu.mine;
+  const picks = (mu.picks || []).map(c => `<button class="${c.id === B.champ ? "on" : ""}" data-pick="${c.id}" data-keep>${img("square", c.id)}
+      <span>${esc(champName(c.id))}</span><b class="${wrTone(c.win)}">${pct1(c.win)}</b><small class="num">${c.play.toLocaleString()} 场</small></button>`).join("");
+  return `<div class="box wide"><h3>对位推荐 <span>${POS[B.pos] || ""}对线 ${esc(champName(B.target))}${mu.guessed ? "（按对面阵容推断）" : ""} · 点推荐英雄，下面的符文和出装会切换成它打 ${esc(champName(B.target))} 的版本</span></h3>
+    <div class="mu">
+      <div class="mu-vs">${img("square", B.champ, "", champName(B.champ))}<div class="v">${esc(champName(B.champ))} 的胜率<b class="${wrTone(mine?.win)}">${mine ? pct1(mine.win) : "--"}</b>${mine ? mine.play.toLocaleString() + " 场" : "样本不足"}</div>${img("square", B.target, "", champName(B.target))}</div>
+      <div><div class="hint" style="margin-bottom:8px">打 ${esc(champName(B.target))} 胜率最高的${POS[B.pos] || "英雄"}</div><div class="mu-picks">${picks || '<p class="hint">暂无数据</p>'}</div></div>
+    </div></div>`;
+}
+function buildView() {
+  const list = Object.entries(assets.champions).map(([id, n]) => [+id, n]).sort((a, b) => a[1].localeCompare(b[1], "zh"));
+  const kw = B.search.trim().toLowerCase();
+  const shown = kw ? list.filter(([, n]) => n.toLowerCase().includes(kw)) : list;
+  const pk = state.pick || {};
+  const quick = [pk.champ && ["mine", pk.champ], ...(pk.enemies || []).map(e => ["enemy", e])].filter(Boolean)
+    .map(([t, id]) => t === "mine" ? `<button data-pick="${id}" title="我的英雄">${img("square", id)}${esc(champName(id))}</button>`
+                                  : `<button class="enemy" data-target="${id}" title="设为对位对手">${img("square", id)}${esc(champName(id))}</button>`).join("");
+  const grid = shown.map(([id, n]) => `<button class="${id === B.champ ? "on" : ""}" data-pick="${id}">${img("square", id)}<span>${esc(n)}</span></button>`).join("");
+  const picker = `<section class="panel picker"><input class="search" id="csearch" placeholder="搜索英雄" value="${esc(B.search)}">
+    ${quick ? `<div class="quick">${quick}</div>` : ""}<div class="cgrid" data-scroll="cgrid">${grid}</div></section>`;
+
+  let main;
+  const d = B.data;
+  if (B.err) main = `<div class="loading"><div>读取 OP.GG 数据失败：${esc(B.err)}<br><br><button class="tbtn primary" data-retry>重试</button></div></div>`;
+  else if (!d) main = `<div class="loading"><div><div class="spin"></div>正在读取 OP.GG 数据…</div></div>`;
+  else {
+    const enemies = [...new Set([...(pk.enemies || []), ...(B.target ? [B.target] : [])])];
+    const opts = `<option value="">不限对手（全部对局）</option>`
+      + (pk.enemies?.length ? `<optgroup label="对面已选">${pk.enemies.map(e => `<option value="${e}" ${e === B.target ? "selected" : ""}>${esc(champName(e))}</option>`).join("")}</optgroup>` : "")
+      + `<optgroup label="全部英雄">${list.map(([id, n]) => `<option value="${id}" ${id === B.target && !(pk.enemies || []).includes(id) ? "selected" : ""}>${esc(n)}</option>`).join("")}</optgroup>`;
+    const st = d.stats || {};
+    const ptabs = B.mode === "ranked" ? (d.positions || []).map(p => `<button class="${p.pos === B.pos ? "on" : ""}" data-bpos="${p.pos}">${POS[p.pos]}<small>${pct(p.role || 0)}%</small></button>`).join("") : "";
+    const few = B.target && d.sample < 300;
+    main = `<div class="bmain" data-scroll="bmain" style="${B.loading ? "opacity:.55;pointer-events:none" : ""}">
+      <div class="bhero">${img("splash", d.champ)}<div class="bhero-in">${img("square", d.champ)}
+        <div style="min-width:0"><h1>${esc(champName(d.champ))}${st.tier ? `<span class="tierb tb${st.tier}">T${st.tier}</span>` : ""}
+          <span class="c-dim" style="font-size:13px;font-weight:400">${B.mode === "aram" ? "大乱斗" : (POS[d.pos] || "")}${st.rank ? ` · 第 ${st.rank} 名` : ""}</span></h1>
+          <div class="kpis"><div>胜率<b class="${wrTone(st.win)}">${pct1(st.win)}</b></div><div>选取率<b>${pct1(st.pick)}</b></div>
+            <div>禁用率<b>${pct1(st.ban)}</b></div><div>KDA<b>${st.kda ? st.kda.toFixed(2) : "--"}</b></div><div>样本<b>${(st.play || 0).toLocaleString()}</b></div></div>
+          <div class="ptabs">${ptabs}<button class="${B.mode === "aram" ? "on" : ""}" data-bmode="${B.mode === "aram" ? "ranked" : "aram"}">${B.mode === "aram" ? "返回排位" : "大乱斗"}</button></div></div>
+        ${B.mode === "ranked" ? `<div class="vs"><label>对位对手</label><select class="sel" id="target">${opts}</select>
+          ${B.target ? `<span class="${few ? "warn" : "hint"}">针对 ${esc(champName(B.target))}：${(d.sample || 0).toLocaleString()} 场${few ? "，样本少仅供参考" : ""}</span>` : ""}</div>` : ""}
+      </div></div>
+      <div class="og">
+        ${matchupBox()}
+        ${runeBox(d)}
+        <div class="box">${spellBox(d)}</div>
+        <div class="box">${skillBox(d)}</div>
+        ${itemsBox(d)}
+        ${B.mode === "ranked" ? `<div class="box third"><h3>难打的对手 <span>点击查看针对它的出装</span></h3><div class="clist">${counterList(d.hard, false)}</div></div>
+        <div class="box third"><h3>好打的对手 <span>你方胜率最高</span></h3><div class="clist">${counterList(d.easy, true)}</div></div>` : ""}
+        ${trendBox(d)}
+      </div>
+      <p class="hint" style="padding:0 4px 6px">数据来自 OP.GG（${OTIER_NAMES[otier]}，全球服），每 30 分钟更新一次。</p>
+    </div>`;
+  }
+  return `<div class="build">${picker}${main}</div>`;
+}
+
+/* ---------------- 梯队页 ---------------- */
+async function loadTiers() {
+  const key = T.mode + otier;
+  T.loading = true; T.err = null;
+  try { T.rows = await getJSON(`/api/opgg/tiers?mode=${T.mode}&tier=${otier}`); T.key = key; }
+  catch (e) { T.err = e.message; }
+  T.loading = false;
+  if (tab === "tier") render();
+}
+function tierView() {
+  if ((!T.rows || T.key !== T.mode + otier) && !T.loading && !T.err) loadTiers();
+  const tabs = (T.mode === "ranked" ? POS_ORDER.map(k => `<button class="${T.pos === k ? "on" : ""}" data-tpos="${k}">${POS[k]}</button>`).join("") : "")
+    + `<button class="${T.mode === "aram" ? "on" : ""}" data-tmode="${T.mode === "aram" ? "ranked" : "aram"}">${T.mode === "aram" ? "返回排位" : "大乱斗"}</button>`;
+  let body;
+  if (T.err) body = `<div class="loading"><div>读取失败：${esc(T.err)}<br><br><button class="tbtn primary" data-tretry>重试</button></div></div>`;
+  else if (!T.rows || T.key !== T.mode + otier) body = `<div class="loading"><div><div class="spin"></div>正在读取 OP.GG 梯队…</div></div>`;
+  else {
+    const rows = T.rows.filter(r => T.mode === "aram" || r.pos === T.pos).sort((a, b) => (a.rank || 999) - (b.rank || 999));
+    body = `<div class="panel-body" style="padding:0" data-scroll="tiers"><table class="t"><thead><tr><th>英雄</th><th>梯队</th><th>胜率</th><th>选取率</th><th>禁用率</th><th>KDA</th><th>排名变化</th></tr></thead><tbody>
+      ${rows.map(r => {
+        const ch = r.prev && r.rank ? r.prev - r.rank : 0;
+        return `<tr class="click" data-build="${r.id}" data-pos="${r.pos}"><td><div class="cn"><span class="rk">${r.rank || "-"}</span>${img("square", r.id)}${esc(champName(r.id) || "#" + r.id)}</div></td>
+          <td><span class="tierb tb${r.tier ?? 5}">T${r.tier ?? "-"}</span></td><td class="${wrTone(r.win)}">${pct1(r.win)}</td><td>${pct1(r.pick)}</td>
+          <td>${pct1(r.ban)}</td><td>${r.kda ? r.kda.toFixed(2) : "--"}</td>
+          <td class="chg ${ch > 0 ? "c-good" : ch < 0 ? "c-bad" : "c-dim"}">${ch > 0 ? "▲ " + ch : ch < 0 ? "▼ " + -ch : "—"}</td></tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+  return `<div class="tierpage"><div class="tierbar"><div class="seg">${tabs}</div><span class="hint">数据来自 OP.GG 全球服（${OTIER_NAMES[otier]}）· 点英雄查看出装</span></div>
+    <section class="panel">${body}</section></div>`;
+}
+
+/* ---------------- 单局详情弹窗 ---------------- */
+async function openGame(id, focus) {
+  modal = { id, focus, data: null, err: null };
+  fresh.modal = true;
+  render();
+  try { const d = await getJSON(`/api/game/${id}`); if (modal?.id === id) modal.data = d; }
+  catch (e) { if (modal?.id === id) modal.err = e.message; }
+  if (modal?.id === id) render();
+}
+function gameModal() {
+  if (!modal) return "";
+  const enter = fresh.modal ? " enter" : "";
+  fresh.modal = false;
+  const close = `<button class="x" data-close="modal"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.5"/></svg></button>`;
+  const d = modal.data;
+  let inner;
+  if (modal.err) inner = `<div class="mhead"><h2>读取失败</h2><span>${esc(modal.err)}</span>${close}</div>`;
+  else if (!d) inner = `<div class="mhead"><h2>对局详情</h2><span>读取中…</span>${close}</div><div class="loading" style="height:200px"><div class="spin"></div></div>`;
+  else {
+    const me = d.players.find(p => p.puuid === modal.focus);
+    const maxDmg = Math.max(...d.players.map(p => p.dmg), 1);
+    const min = Math.max(d.dur / 60, 1);
+    const side = t => {
+      const ps = d.players.filter(p => p.team === t.id);
+      return `<div class="tside ${t.win ? "w" : "l"}"><div class="tside-h"><b>${t.win ? "胜利" : "失败"}</b><span>${t.id === 100 ? "蓝色方" : "红色方"}</span>
+        <span class="num">击杀 ${t.kills}</span><span class="num">经济 ${(t.gold / 1000).toFixed(1)}k</span>
+        <span class="num">推塔 ${t.towers}</span><span class="num">小龙 ${t.dragons}</span><span class="num">大龙 ${t.barons}</span></div>
+        <div class="hcols"><span></span><span></span><span></span><span>玩家</span><span style="text-align:center">评分</span><span style="text-align:right">KDA</span>
+          <span>伤害</span><span style="text-align:right">经济</span><span style="text-align:right">补刀</span><span style="text-align:right">视野</span><span>装备</span></div>
+        ${ps.map(p => `<div class="prow${p.puuid && p.puuid === modal.focus ? " focus" : ""}">
+          <div class="ch">${img("square", p.c)}<i>${p.lvl}</i></div>
+          <div class="sp">${(p.spells || []).map(spellImg).join("")}</div>
+          <div class="keyst">${perkImg(p.perk)}${styleImg(p.sub)}</div>
+          <div class="who"><b>${esc(p.name || champName(p.c))}</b><span>${esc(champName(p.c))}${p.tag ? " #" + esc(p.tag) : ""}</span></div>
+          <div class="score"><b class="${p.score >= 7 ? "c-gold" : ""}">${p.score.toFixed(1)}</b>${p.badge ? `<div><span class="badge ${p.badge.toLowerCase()}">${p.badge}</span></div>` : ""}</div>
+          <div class="cell num">${p.k} / <span class="d">${p.d}</span> / ${p.a}<small>${((p.k + p.a) / Math.max(p.d, 1)).toFixed(2)} · 参团 ${pct(p.kp)}%</small></div>
+          <div class="cell num" style="text-align:left">${p.dmg.toLocaleString()}<div class="bar2"><div style="width:${p.dmg / maxDmg * 100}%"></div></div></div>
+          <div class="cell num">${(p.gold / 1000).toFixed(1)}k</div>
+          <div class="cell num">${p.cs}<small>${(p.cs / min).toFixed(1)}/分</small></div>
+          <div class="cell num">${p.vis}</div>
+          <div class="items">${(p.items || []).map(id => id ? itemImg(id) : '<div class="ph"></div>').join("")}</div></div>`).join("")}</div>`;
+    };
+    inner = `<div class="mhead"><h2 class="${me ? (me.win ? "c-good" : "c-bad") : ""}">${me ? (me.win ? "胜利" : "失败") : "对局详情"}</h2>
+        <span>${esc(QUEUES[d.q] || "其他")} · ${Math.round(d.dur / 60)} 分钟 · ${new Date(d.t).toLocaleString("zh-CN")}</span>
+        <span>评分综合 KDA、参团、伤害、经济、视野、补刀（参考 OP Score 思路，本程序自行计算）</span>${close}</div>
+      <div class="mbody">${d.teams.map(side).join("")}</div>`;
+  }
+  return `<div class="scrim top${enter}" data-close="modal"></div><div class="modal${enter}">${inner}</div>`;
+}
+
+/* ---------------- 渲染 ---------------- */
 function render() {
   if (!state) return;
   $("#led").className = "led " + (state.connected ? "ok" : "bad");
   $("#status").innerHTML = [state.phase && `<b>${esc(state.phase)}</b>`, esc(state.status)].filter(Boolean).join(" · ");
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  document.querySelectorAll(".tools .seg").forEach(s => s.style.display = s.dataset.for.split(" ").includes(tab) ? "" : "none");
   document.querySelectorAll("#count button").forEach(b => b.classList.toggle("on", +b.dataset.v === state.settings.games));
   document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.v === mode));
+  document.querySelectorAll("#otier button").forEach(b => b.classList.toggle("on", b.dataset.v === otier));
   $("#pin").classList.toggle("on", !!state.settings.topmost);
   $("#winctl").style.display = state.native ? "" : "none";
-  const backToTeam = state.view === "self" && state.phase === "选英雄中";
-  $("#self").textContent = backToTeam ? "返回队友" : "我的战绩";
-  $("#self").dataset.target = backToTeam ? "/api/team" : "/api/self";
 
-  const players = state.players || [];
-  let html;
-  if (!players.length) {
-    html = emptyView();
-  } else if (state.view === "self") {
-    const p = players[0], s = p.loading ? null : stats(p);
-    html = `<div class="solo">${card(p, false)}<section class="panel">
-      <div class="panel-head"><h2>最近对局</h2><span>${s ? `${s.n} 场${MODE_NAMES[mode]}` : "加载中…"}</span></div>
-      <div class="list">${s ? gameRows(s) : ""}</div></section></div>`;
-  } else {
-    if (!players.some(p => p.key === selected && !p.loading)) selected = null;
-    const sel = players.find(p => p.key === selected);
-    html = `<div class="team">${players.map(p => card(p)).join("")}</div>${sel ? drawer(sel) : ""}`;
-  }
-  const list = document.querySelector(".list"), top = list ? list.scrollTop : 0;
-  $("#main").innerHTML = html;
-  const nl = document.querySelector(".list"); if (nl) nl.scrollTop = top;
-  players.forEach(p => { if (!p.loading) seen.add(p.key); });
+  // 记住滚动位置和搜索框光标，重画后恢复
+  const scrolls = {};
+  document.querySelectorAll("[data-scroll]").forEach(el => scrolls[el.dataset.scroll] = el.scrollTop);
+  const typing = document.activeElement?.id === "csearch";
+  const caret = typing ? document.activeElement.selectionStart : 0;
+
+  $("#main").innerHTML = tab === "team" ? teamView() : tab === "me" ? meView() : tab === "build" ? buildView() : tierView();
+  $("#overlay").innerHTML = gameModal();
+  document.querySelectorAll("[data-scroll]").forEach(el => { if (scrolls[el.dataset.scroll]) el.scrollTop = scrolls[el.dataset.scroll]; });
+  if (typing) { const s = $("#csearch"); s.focus(); s.setSelectionRange(caret, caret); }
+  (state.players || []).forEach(p => { if (!p.loading) seen.add(p.key); });
 }
 
 async function post(path, body = {}) {
   try { await api(path, { method: "POST", body: JSON.stringify(body) }); } catch (e) {}
   poll();
 }
-
+async function loadAssets() {
+  try { assets = await getJSON("/api/assets"); render(); } catch (e) { assetsFor = null; }
+}
 async function poll() {
   try {
     state = await (await api("/api/state")).json();
-    const key = state.version + "|" + mode + "|" + selected;
-    if (key !== lastKey) { lastKey = key; render(); }
   } catch (e) {
     $("#status").textContent = "后台程序已退出";
     $("#led").className = "led bad";
+    return;
   }
+  if (assetsFor !== state.connected) { assetsFor = state.connected; loadAssets(); }
+  if (state.phase === "选英雄中" && lastPhase !== "选英雄中" && tab === "me") setTab("team");
+  lastPhase = state.phase;
+  // 选英雄时，我的英雄、位置或对面阵容变了：自动刷新出装和对位
+  const pk = JSON.stringify(state.pick || {});
+  if (state.pick?.champ && pk !== B.autoKey) { B.autoKey = pk; if (B.auto) autoBuild(); }
+  const key = [state.version, mode, selected, tab].join("|");
+  if (key !== lastKey) { lastKey = key; render(); }
+}
+function setTab(t) {
+  tab = t; store.set("tab", t);
+  if (t === "me" && state && state.view !== "self") post("/api/self");
+  if (t === "team" && state?.view === "self" && state.phase === "选英雄中") post("/api/team");
+  if (t === "build" && !B.data && !B.loading) loadBuild();
+  lastKey = ""; render();
+}
+function pickChamp(id, { pos = null, keepTarget = false } = {}) {
+  B.champ = +id; store.set("bchamp", B.champ); B.pos = pos; B.auto = false;
+  if (!keepTarget || B.target === B.champ) B.target = keepTarget ? B.target : null;
+  if (B.target === B.champ) B.target = null;
+  if (tab !== "build") { tab = "build"; store.set("tab", "build"); }
+  loadBuild();
 }
 
 document.addEventListener("click", e => {
-  const seg = e.target.closest(".seg button");
-  if (seg?.parentElement.id === "mode") {
-    mode = seg.dataset.v;
-    try { localStorage.setItem("mode", mode); } catch (err) {}
-    lastKey = ""; render(); return;
-  }
+  const t = e.target;
+  const nav = t.closest("[data-tab]");
+  if (nav) { setTab(nav.dataset.tab); return; }
+  const seg = t.closest(".seg button");
+  if (seg?.parentElement.id === "mode") { mode = seg.dataset.v; store.set("mode", mode); lastKey = ""; render(); return; }
   if (seg?.parentElement.id === "count") { post("/api/settings", { games: +seg.dataset.v }); return; }
-  const win = e.target.closest("#winctl button");
+  if (seg?.parentElement.id === "otier") {
+    otier = seg.dataset.v; store.set("otier", otier);
+    if (tab === "build") loadBuild(); else render();
+    return;
+  }
+  const win = t.closest("#winctl button");
   if (win) { post("/api/window", { action: win.dataset.a }); return; }
-  if (e.target.closest("[data-close]")) { selected = null; lastKey = ""; render(); return; }
-  if (e.target.closest("[data-act=self]")) { post("/api/self"); return; }
-  const c = e.target.closest(".card[data-key]");
-  if (c) { selected = c.dataset.key; drawerFresh = true; lastKey = ""; render(); }
+  const close = t.closest("[data-close]");
+  if (close) { if (close.dataset.close === "modal") modal = null; else selected = null; render(); return; }
+  const g = t.closest("[data-game]");
+  if (g) { openGame(+g.dataset.game, g.dataset.focus); return; }
+  const tgt = t.closest("[data-target]");
+  if (tgt) { B.target = +tgt.dataset.target; B.auto = false; if (B.target === B.champ) B.target = null; loadBuild(); return; }
+  const pick = t.closest("[data-pick]");
+  if (pick) { pickChamp(pick.dataset.pick, { keepTarget: pick.hasAttribute("data-keep"), pos: pick.hasAttribute("data-keep") ? B.pos : null }); return; }
+  const bld = t.closest("[data-build]");
+  if (bld) { pickChamp(bld.dataset.build, { pos: bld.dataset.pos || null }); return; }
+  const bpos = t.closest("[data-bpos]");
+  if (bpos) { B.pos = bpos.dataset.bpos; B.target = null; loadBuild(); return; }
+  const bmode = t.closest("[data-bmode]");
+  if (bmode) { B.mode = bmode.dataset.bmode; loadBuild(); return; }
+  if (t.closest("[data-retry]")) { loadBuild(); return; }
+  if (t.closest("[data-tretry]")) { T.err = null; loadTiers(); return; }
+  const rune = t.closest("[data-rune]");
+  if (rune) { B.runeIdx = +rune.dataset.rune; render(); return; }
+  if (t.closest("[data-import]")) { importRunes(); return; }
+  const tpos = t.closest("[data-tpos]");
+  if (tpos) { T.pos = tpos.dataset.tpos; store.set("tpos", T.pos); render(); return; }
+  const tmode = t.closest("[data-tmode]");
+  if (tmode) { T.mode = tmode.dataset.tmode; T.err = null; render(); return; }
+  const c = t.closest(".card[data-key]");
+  if (c) { selected = c.dataset.key; fresh.drawer = true; lastKey = ""; render(); }
 });
-document.addEventListener("keydown", e => { if (e.key === "Escape" && selected) { selected = null; lastKey = ""; render(); } });
-$("#self").onclick = e => post(e.currentTarget.dataset.target || "/api/self");
-$("#refresh").onclick = () => post("/api/refresh");
+document.addEventListener("input", e => { if (e.target.id === "csearch") { B.search = e.target.value; render(); } });
+document.addEventListener("change", e => {
+  if (e.target.id === "target") { B.target = e.target.value ? +e.target.value : null; B.auto = false; loadBuild(); }
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (modal) modal = null; else if (selected) selected = null; else return;
+  render();
+});
+async function importRunes() {
+  const r = B.data?.runes?.[B.runeIdx];
+  if (!r) return;
+  const name = champName(B.champ) + (B.target ? " vs " + champName(B.target) : "");
+  try {
+    const res = await api("/api/runes", { method: "POST", body: JSON.stringify({
+      name, primary: r.primary, secondary: r.secondary, perks: [...r.primaryRunes, ...r.secondaryRunes, ...(r.shards || [])] }) });
+    const d = await res.json();
+    toast(d.message || (d.ok ? "已导入" : "导入失败"), !d.ok);
+  } catch (e) { toast("导入失败：" + e.message, true); }
+}
+$("#refresh").onclick = () => {
+  if (tab === "build") { loadBuild(); return; }
+  if (tab === "tier") { T.rows = null; T.err = null; render(); return; }
+  post("/api/refresh");
+};
 $("#pin").onclick = () => post("/api/settings", { topmost: !state?.settings.topmost });
 
 poll();

@@ -8,10 +8,13 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import opgg
+from assets import ASSETS
 from lcu import HERE, LCU, RES, NotConnected, POSITIONS
 
 TITLE = "LOL 战绩速览"
@@ -40,6 +43,7 @@ class State:
         self.phase = ""
         self.view = "idle"           # idle / team / self
         self.players = []            # 每个元素：{key, pos, champ, me, loading, ...战绩}
+        self.pick = {}               # 选英雄时：{champ, pos, enemies:[英雄id]}
         self.version = 0
 
     def update(self, **kw):
@@ -47,17 +51,19 @@ class State:
         with self.lock:
             changed = False
             for k, v in kw.items():
-                # 列表/字典总是替换：load_players 靠对象身份判断结果是否还有效
-                if isinstance(v, (list, dict)) or getattr(self, k) != v:
+                if getattr(self, k) != v:
                     setattr(self, k, v)
                     changed = True
+                elif isinstance(v, (list, dict)):
+                    # 内容一样也换成新对象（load_players 靠对象身份判断结果是否有效），但不用通知界面重画
+                    setattr(self, k, v)
             if changed:
                 self.version += 1
 
     def snapshot(self):
         with self.lock:
             return {"connected": self.connected, "status": self.status, "phase": self.phase,
-                    "view": self.view, "players": self.players, "settings": self.settings,
+                    "view": self.view, "players": self.players, "settings": self.settings, "pick": self.pick,
                     "version": self.version}
 
 
@@ -79,10 +85,12 @@ class Worker(threading.Thread):
                 if self.lcu is None:
                     self.lcu = LCU()
                     self.lcu.champions()
+                    ASSETS.set_lcu(self.lcu)
                     self.s.update(connected=True, status="已连接客户端")
                 self.tick()
             except NotConnected as e:
                 self.lcu, self.lobby_key = None, None
+                ASSETS.set_lcu(None)
                 self.s.update(connected=False, status=str(e), phase="")
                 time.sleep(3)
             except Exception as e:  # 接口格式变了之类的意外，别让线程退出
@@ -137,6 +145,7 @@ class Worker(threading.Thread):
                 if entries:
                     self.load_players(entries, view)
             self.lobby_key = None
+            self.s.update(pick={})
             return
 
         session = self.lcu.champ_select() or {}
@@ -148,10 +157,14 @@ class Worker(threading.Thread):
             "key": str(m.get("puuid") or m.get("summonerId") or m.get("cellId")),
             "puuid": m.get("puuid"), "summonerId": m.get("summonerId"),
             "pos": POSITIONS.get((m.get("assignedPosition") or "").lower(), ""),
+            "pos_raw": (m.get("assignedPosition") or "").lower() or None,
             "champ": m.get("championId") or m.get("championPickIntent") or None,
             "me": m.get("cellId") == me_cell,
         } for m in team]
         key = tuple(e["key"] for e in entries)
+        me = next((e for e in entries if e["me"]), {})
+        enemies = [m.get("championId") for m in session.get("theirTeam") or [] if m.get("championId")]
+        self.s.update(pick={"champ": me.get("champ"), "pos": me.get("pos_raw"), "enemies": enemies})
 
         if key != self.lobby_key:
             self.self_mode = False
@@ -251,21 +264,60 @@ class Handler(BaseHTTPRequestHandler):
             with open(os.path.join(RES, "web", "index.html"), "rb") as f:
                 page = f.read().replace(b"__APP_TOKEN__", APP_TOKEN.encode())
             return self.send(page, "text/html; charset=utf-8")
-        if self.path == "/api/state":
+        url = urllib.parse.urlparse(self.path)
+        q = {k: v[0] for k, v in urllib.parse.parse_qs(url.query).items()}
+        route = url.path
+        if route == "/api/state":
             data = STATE.snapshot()
-            data["champions"] = WORKER.lcu.champions() if WORKER.lcu else {}
             data["native"] = WINDOW is not None
-            return self.send(json.dumps(data, ensure_ascii=False).encode())
-        if self.path.startswith("/art/"):  # /art/<square|load|splash|profile>/<id>
-            parts = self.path.split("/")
+            return self.json(data)
+        if route.startswith("/art/"):  # /art/<种类>/<id>
+            parts = route.split("/")
             body, ctype = None, ""
-            if len(parts) == 4 and parts[2] in ("square", "load", "splash", "profile") and parts[3].isdigit() and WORKER.lcu:
-                try:
-                    body, ctype = WORKER.lcu.art(parts[2], int(parts[3]))
-                except Exception:
-                    body = None
+            try:
+                if len(parts) == 4 and parts[3].isdigit():
+                    body, ctype = ASSETS.art(parts[2], int(parts[3]))
+                elif len(parts) == 5 and parts[2] == "ability" and parts[3].isdigit() and parts[4] in ("p", "q", "w", "e", "r"):
+                    body, ctype = ASSETS.ability(int(parts[3]), parts[4])
+            except Exception:
+                body = None
             return self.send(body, ctype, cache=True) if body else self.send(b"", code=404)
+        try:
+            if route == "/api/assets":
+                return self.json(ASSETS.names())
+            if route == "/api/opgg/build":
+                return self.json(opgg.build(int(q["champ"]), q.get("pos") or None, q.get("mode", "ranked"),
+                                            q.get("tier", "emerald_plus"), int(q["target"]) if q.get("target") else None))
+            if route == "/api/opgg/tiers":
+                return self.json(opgg.tiers(q.get("mode", "ranked"), q.get("tier", "emerald_plus")))
+            if route == "/api/opgg/matchup":
+                return self.json(self.matchup(q))
+            if route.startswith("/api/game/") and WORKER.lcu:
+                return self.json(WORKER.lcu.game(int(route.rsplit("/", 1)[1])))
+            if route == "/api/duos" and WORKER.lcu:
+                return self.json(WORKER.lcu.duos(q["puuid"]))
+        except Exception as e:  # OP.GG 连不上、客户端断开等
+            return self.json({"error": str(e) or type(e).__name__}, code=502)
         self.send(b"{}", code=404)
+
+    def matchup(self, q):
+        """找出对位的敌人（对面英雄里最常走我这个位置的那个），再算推荐英雄。"""
+        pos = q.get("pos") or None
+        enemies = [int(x) for x in (q.get("enemies") or "").split(",") if x.strip().isdigit()]
+        enemy = int(q["enemy"]) if q.get("enemy") else None
+        guessed = False
+        if not enemy and enemies and pos:
+            mains = opgg.main_positions()
+            ranked = sorted(enemies, key=lambda e: (mains.get(e) or [None]).index(pos) if pos in (mains.get(e) or []) else 99)
+            if pos in (mains.get(ranked[0]) or []):
+                enemy, guessed = ranked[0], True
+        if not enemy or not pos:
+            return {"enemy": None, "pos": pos}
+        my = int(q["champ"]) if q.get("champ") else None
+        return {**opgg.matchup(my, enemy, pos, q.get("tier", "emerald_plus")), "guessed": guessed}
+
+    def json(self, data, code=200):
+        return self.send(json.dumps(data, ensure_ascii=False).encode(), code=code)
 
     def do_POST(self):
         if not self.trusted():
@@ -273,6 +325,15 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         if self.path == "/api/self":
             WORKER.want_self.set()
+        elif self.path == "/api/runes":
+            try:
+                if not WORKER.lcu:
+                    raise RuntimeError("没有连接客户端")
+                msg = WORKER.lcu.set_runes(body.get("name", ""), int(body["primary"]), int(body["secondary"]),
+                                           [int(x) for x in body["perks"]])
+                return self.json({"ok": True, "message": msg})
+            except Exception as e:
+                return self.json({"ok": False, "message": str(e)}, code=400)
         elif self.path == "/api/team":
             WORKER.want_team.set()
         elif self.path == "/api/refresh":
