@@ -23,9 +23,9 @@ import updater
 from assets import _CTX as ASSET_CTX
 from tray import Tray
 from assets import ASSETS
-from lcu import HERE, LCU, RES, NotConnected, POSITIONS
+from lcu import HERE, LCU, RES, NotConnected, POSITIONS, is_our_page
 
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 REPO = "lcljskasa/lol-stats"
 TITLE = "LOL 战绩速览"
 APP_TOKEN = secrets.token_urlsafe(16)  # 只有我们自己的页面知道，挡住其他网页调用本地接口
@@ -92,10 +92,22 @@ def check_update():
         STATE.update(update_info=info)
 
 
+_update_lock = threading.Lock()
+
+
 def do_update():
-    """一键更新：下载新版 → 让新版接手替换 → 旧程序退出。"""
+    """一键更新：下载新版 → 让新版接手替换 → 旧程序退出。连点多次只会执行一次。"""
+    if not _update_lock.acquire(blocking=False):
+        return
+    try:
+        _do_update()
+    finally:
+        _update_lock.release()
+
+
+def _do_update():
     info = STATE.update_info
-    if not info:
+    if not info or (STATE.update_progress or {}).get("stage") == "restarting":
         return
     if not getattr(sys, "frozen", False):
         STATE.update(update_progress={"stage": "error", "msg": "源码运行的版本不能自动更新，请用 git 拉取最新代码"})
@@ -114,16 +126,39 @@ def do_update():
         STATE.update(update_progress={"stage": "error", "msg": str(e)})
         return
     STATE.update(update_progress={"stage": "restarting"})
-    subprocess.Popen([dest, "--apply-update", sys.executable, str(os.getpid())],
-                     creationflags=0x00000008 | 0x00000200)  # 独立进程，不随旧程序一起退出
+    try:
+        subprocess.Popen([dest, "--apply-update", sys.executable, str(os.getpid())],
+                         creationflags=0x00000008 | 0x00000200)  # 独立进程，不随旧程序一起退出
+    except Exception as e:  # 常见原因：杀毒软件拦截了刚下载的新版
+        STATE.update(update_progress={"stage": "error", "msg": f"新版本启动失败（{e}），可能被杀毒软件拦截"})
+        return
     time.sleep(0.8)
     MAIN.quit()
 
 
 def cleanup_update_files():
     """更新完成后，删掉下载目录里的临时文件（新版刚启动时旧文件可能还被占用，稍等一下）。"""
+    if running_from_update_dir():
+        return  # 替换旧 exe 失败时，新版是直接从下载目录运行的，不能删
     time.sleep(15)
     shutil.rmtree(os.path.join(HERE, "update"), ignore_errors=True)
+
+
+def running_from_update_dir():
+    if not getattr(sys, "frozen", False):
+        return False
+    upd = os.path.normcase(os.path.abspath(os.path.join(HERE, "update")))
+    return os.path.normcase(os.path.abspath(sys.executable)).startswith(upd + os.sep)
+
+
+def locked_champion(session, me_cell):
+    """我已经锁定的英雄。悬停 / 预选不算；没有选人步骤的模式（大乱斗）直接用分到的英雄。"""
+    picks = [a for group in session.get("actions") or [] for a in group
+             if a.get("actorCellId") == me_cell and a.get("type") == "pick"]
+    if picks:
+        return next((a.get("championId") for a in picks if a.get("completed") and a.get("championId")), None)
+    me = next((m for m in session.get("myTeam") or [] if m.get("cellId") == me_cell), {})
+    return me.get("championId") or None
 
 
 def load_settings():
@@ -188,6 +223,18 @@ class Worker(threading.Thread):
         self.self_mode = False   # 选英雄时用户切到了“我的战绩”
         self.game_key = None     # 当前对局双方名单，避免每秒重复查
         self.raw_phase = ""      # 客户端原始的阶段名（InProgress 等）
+        self.auto_lock = threading.Lock()  # 自动导入一次只跑一个，按顺序写入客户端
+        self.reset_auto()
+
+    def reset_auto(self):
+        """每局选英雄结束后清空自动导入的记录，下一局重新导入。"""
+        self.auto_key = None
+        self.auto_seq = getattr(self, "auto_seq", 0) + 1  # 序号变了，还没写入的旧请求就作废
+        self.auto_fails = 0
+        self.auto_retry_at = 0
+        self.runes_done = self.spells_done = False
+        self.manual_runes = self.manual_spells = False  # 用户在本程序里手动改过
+        self.auto_spells = None  # 上次自动设置的召唤师技能，用来判断用户有没有在客户端里改过
 
     def run(self):
         while True:
@@ -230,7 +277,7 @@ class Worker(threading.Thread):
         self.s.update(status=f"已加载 {len(entries)} 人 × {want} 场，用时 {time.time() - started:.1f} 秒")
 
     def maybe_auto_import(self, champ, pos, enemies):
-        if not champ or not STATE.settings.get("autoRunes", True):
+        if not champ or not STATE.settings.get("autoRunes", True) or time.time() < self.auto_retry_at:
             return
         aram = bool(getattr(self, "aram", False))
         target = None
@@ -241,28 +288,70 @@ class Worker(threading.Thread):
         if key == getattr(self, "auto_key", None):
             return
         self.auto_key = key
-        threading.Thread(target=self.auto_import, args=(champ, pos, target, aram), daemon=True).start()
+        self.auto_seq += 1
+        threading.Thread(target=self.auto_import, args=(champ, pos, target, aram, self.auto_seq), daemon=True).start()
 
-    def auto_import(self, champ, pos, target, aram):
+    def user_changed_runes(self):
+        """已经导入过一次后，用户在客户端里换回了自己的符文页：后面不再覆盖。"""
+        if self.manual_runes:
+            return True
+        if not self.runes_done:
+            return False
+        cur = self.lcu.get("/lol-perks/v1/currentpage") or {}
+        return not is_our_page(cur)
+
+    def user_changed_spells(self):
+        if self.manual_spells:
+            return True
+        if not self.spells_done or not self.auto_spells:
+            return False
+        session = self.lcu.champ_select() or {}
+        me = next((m for m in session.get("myTeam") or [] if m.get("cellId") == session.get("localPlayerCellId")), {})
+        return {me.get("spell1Id"), me.get("spell2Id")} != self.auto_spells
+
+    def auto_import(self, champ, pos, target, aram, seq):
         try:
             b = opgg.build(champ, pos, "aram" if aram else "ranked", "emerald_plus", target)
-            msgs = []
-            if b.get("runes"):
-                r = b["runes"][0]
-                name = ASSETS.names()["champions"].get(champ, "")
-                if target:
-                    name += " vs " + ASSETS.names()["champions"].get(target, "")
-                self.lcu.set_runes(name, r["primary"], r["secondary"], r["primaryRunes"] + r["secondaryRunes"] + (r["shards"] or []))
-                msgs.append("符文")
-            if b.get("spells"):
-                a, c = b["spells"][0]["ids"]
-                self.lcu.set_spells(a, c)
-                msgs.append("召唤师技能")
-            if msgs:
-                self.s.update(status=f"已自动导入{'和'.join(msgs)}（{ASSETS.names()['champions'].get(champ, '')}）",
-                              auto_import={"champ": champ, "target": target, "t": time.time()})
         except Exception as e:
-            self.s.update(status=f"自动导入失败：{e}")
+            return self.auto_failed(seq, f"获取推荐失败：{e}")
+        with self.auto_lock:
+            if seq != self.auto_seq:
+                return  # 等数据的时候你又换了英雄（或这一局已经结束），这次的结果作废
+            names = ASSETS.names()["champions"]
+            msgs, errors = [], []
+            if b.get("runes") and not self.user_changed_runes():
+                try:
+                    r = b["runes"][0]
+                    name = names.get(champ, "") + (" vs " + names.get(target, "") if target else "")
+                    self.lcu.set_runes(name, r["primary"], r["secondary"], r["primaryRunes"] + r["secondaryRunes"] + (r["shards"] or []))
+                    self.runes_done = True
+                    msgs.append("符文")
+                except Exception as e:
+                    errors.append(f"符文：{e}")
+            if b.get("spells") and not self.user_changed_spells():
+                try:
+                    a, c = b["spells"][0]["ids"]
+                    self.lcu.set_spells(a, c)
+                    self.spells_done, self.auto_spells = True, {a, c}
+                    msgs.append("召唤师技能")
+                except Exception as e:
+                    errors.append(f"召唤师技能：{e}")
+            if errors:
+                return self.auto_failed(seq, "；".join(errors), done=msgs)
+            if msgs:
+                self.s.update(status=f"已自动导入{'和'.join(msgs)}（{names.get(champ, '')}）",
+                              auto_import={"champ": champ, "target": target, "t": time.time()})
+
+    def auto_failed(self, seq, msg, done=()):
+        """导入失败：15 秒后再试（最多 3 次），成功的那部分不受影响。"""
+        if seq != self.auto_seq:
+            return
+        self.auto_fails += 1
+        if self.auto_fails < 3:
+            self.auto_key, self.auto_retry_at = None, time.time() + 15
+            msg += "，15 秒后重试"
+        prefix = f"已自动导入{'和'.join(done)}，" if done else ""
+        self.s.update(status=f"{prefix}自动导入失败：{msg}")
 
     def load_game(self):
         """进入加载界面后，双方 10 人的身份是公开的：读当前对局名单，查出双方战绩。
@@ -290,7 +379,11 @@ class Worker(threading.Thread):
 
     def tick(self):
         phase = self.lcu.phase() or ""
-        self.raw_phase = phase
+        prev, self.raw_phase = self.raw_phase, phase
+        if phase in ("GameStart", "InProgress", "Reconnect") and prev not in ("GameStart", "InProgress", "Reconnect"):
+            self.self_mode = False  # 进入加载界面：不管选人时看的是哪页，都去查双方 10 人
+        if phase != "ChampSelect" and prev == "ChampSelect":
+            self.reset_auto()
         self.s.update(phase=PHASES.get(phase, phase))
 
         if self.want_team.is_set():
@@ -349,12 +442,13 @@ class Worker(threading.Thread):
         key = tuple(e["key"] for e in entries)
         me = next((e for e in entries if e["me"]), {})
         enemies = [m.get("championId") for m in session.get("theirTeam") or [] if m.get("championId")]
+        locked = locked_champion(session, me_cell)
         if key != self.lobby_key:  # 新的一局：看一下是不是大乱斗（每局只查一次）
             sess = self.lcu.get("/lol-gameflow/v1/session") or {}
             self.aram = ((sess.get("gameData") or {}).get("queue") or {}).get("gameMode") == "ARAM"
         self.s.update(pick={"champ": me.get("champ"), "pos": me.get("pos_raw"), "enemies": enemies,
                             "aram": bool(getattr(self, "aram", False))})
-        self.maybe_auto_import(me.get("champ"), me.get("pos_raw"), enemies)
+        self.maybe_auto_import(locked, me.get("pos_raw"), enemies)  # 只在锁定英雄后导入，悬停不算
 
         if key != self.lobby_key:
             self.self_mode = False
@@ -517,8 +611,8 @@ def toggle_overlay():
 def ensure_desktop_shortcut():
     """桌面快捷方式：第一次运行时创建；之后每次启动检查，exe 换了位置就把快捷方式改指过去。
     用户自己删掉了快捷方式，就不再自动加回来。"""
-    if not getattr(sys, "frozen", False):
-        return
+    if not getattr(sys, "frozen", False) or running_from_update_dir():
+        return  # 从更新临时目录运行时不改快捷方式（那个目录之后会被清理）
     exe = sys.executable.replace("'", "''")
     folder = os.path.dirname(sys.executable).replace("'", "''")
     allow_create = "$false" if STATE.settings.get("shortcutCreated") else "$true"
@@ -809,6 +903,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if not WORKER.lcu:
                     raise RuntimeError("没有连接客户端")
+                if WORKER.raw_phase == "ChampSelect":
+                    WORKER.manual_runes = True
                 msg = WORKER.lcu.set_runes(body.get("name", ""), int(body["primary"]), int(body["secondary"]),
                                            [int(x) for x in body["perks"]])
                 return self.json({"ok": True, "message": msg})
@@ -818,6 +914,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if not WORKER.lcu:
                     raise RuntimeError("没有连接客户端")
+                WORKER.manual_spells = True
                 return self.json({"ok": True, "message": WORKER.lcu.set_spells(int(body["spell1"]), int(body["spell2"]))})
             except Exception as e:
                 return self.json({"ok": False, "message": str(e)}, code=400)
@@ -857,7 +954,7 @@ class Handler(BaseHTTPRequestHandler):
                     set_topmost(STATE.settings["topmost"])
                 if "autoRunes" in body:
                     STATE.settings["autoRunes"] = bool(body["autoRunes"])
-                    WORKER.auto_key = None  # 刚打开开关时，本局也立刻导入一次
+                    WORKER.auto_key, WORKER.auto_retry_at = None, 0  # 刚打开开关时，本局也立刻导入一次
                 if "overlay" in body:
                     STATE.settings["overlay"] = bool(body["overlay"])
                     LIVE.dismissed = False

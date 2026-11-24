@@ -23,6 +23,12 @@ PAGE = 20  # 每次请求拉多少场，客户端对单次范围有限制，20 �
 CACHE_VERSION = 2  # 对局字段变化时加 1，旧缓存自动作废
 RUNE_PAGE_PREFIX = "速览"  # 我们导入的符文页名字前缀，只会改这种页
 
+
+def is_our_page(p):
+    """本程序建的符文页：「速览 英雄名」。用户自己起名叫“速览xx”的页不算。"""
+    name = p.get("name") or ""
+    return (name == RUNE_PAGE_PREFIX or name.startswith(RUNE_PAGE_PREFIX + " ")) and p.get("isDeletable", True)
+
 POSITIONS = {"top": "上单", "jungle": "打野", "middle": "中单", "bottom": "ADC", "utility": "辅助"}
 TIERS = {"IRON": "黑铁", "BRONZE": "青铜", "SILVER": "白银", "GOLD": "黄金", "PLATINUM": "铂金",
          "EMERALD": "翡翠", "DIAMOND": "钻石", "MASTER": "大师", "GRANDMASTER": "宗师", "CHALLENGER": "王者"}
@@ -315,7 +321,7 @@ class LCU:
         body = {"name": f"{RUNE_PAGE_PREFIX} {name}"[:25], "primaryStyleId": primary, "subStyleId": secondary,
                 "selectedPerkIds": perks, "current": True}
         pages = self.get("/lol-perks/v1/pages") or []
-        ours = [p for p in pages if (p.get("name") or "").startswith(RUNE_PAGE_PREFIX) and p.get("isDeletable", True)]
+        ours = [p for p in pages if is_our_page(p)]
         if ours:  # 已经有我们建的页：覆盖它，不动用户自己的页
             self.send("PUT", f"/lol-perks/v1/pages/{ours[0]['id']}", {**body, "id": ours[0]["id"]})
             try:
