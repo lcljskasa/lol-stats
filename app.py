@@ -13,12 +13,18 @@ import webbrowser
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import re
+import urllib.request
+
 import live
 import opgg
+from assets import _CTX as ASSET_CTX
 from tray import Tray
 from assets import ASSETS
 from lcu import HERE, LCU, RES, NotConnected, POSITIONS
 
+VERSION = "1.3.0"
+REPO = "lcljskasa/lol-stats"
 TITLE = "LOL 战绩速览"
 APP_TOKEN = secrets.token_urlsafe(16)  # 只有我们自己的页面知道，挡住其他网页调用本地接口
 SETTINGS = os.path.join(HERE, "settings.json")
@@ -28,6 +34,65 @@ PHASES = {"None": "在大厅", "Lobby": "在房间里", "Matchmaking": "排队�
 
 
 GAMES = 1000  # 每人查多少场
+INSTANCE = os.path.join(HERE, "instance.json")  # 正在运行的那个程序的端口和令牌
+
+
+def migrate_old_settings():
+    """老版本把设置放在 exe 旁边：搬过来一次，并删掉 exe 旁边留下的旧文件夹。"""
+    if not getattr(sys, "frozen", False):
+        return
+    old_dir = os.path.dirname(sys.executable)
+    old = os.path.join(old_dir, "settings.json")
+    try:
+        if os.path.exists(old) and not os.path.exists(SETTINGS):
+            shutil.move(old, SETTINGS)
+        for name in ("cache", ".window"):
+            p = os.path.join(old_dir, name)
+            if os.path.isdir(p):
+                shutil.rmtree(p, ignore_errors=True)
+        if os.path.exists(old):
+            os.remove(old)
+    except OSError:
+        pass
+
+
+def single_instance():
+    """只允许开一个。已经开着的话，让它把主窗口显示出来，然后自己退出。"""
+    global _MUTEX
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateMutexW.restype = ctypes.c_void_p
+    _MUTEX = k32.CreateMutexW(None, False, "Local\\LOLStatsSingleInstance")  # 留着句柄，程序退出时系统自动释放
+    if ctypes.get_last_error() != 183:  # ERROR_ALREADY_EXISTS
+        return
+    try:
+        with open(INSTANCE, encoding="utf-8") as f:
+            info = json.load(f)
+        req = urllib.request.Request(f"http://127.0.0.1:{info['port']}/api/show", data=b"{}", method="POST",
+                                     headers={"X-App-Token": info["token"]})
+        urllib.request.urlopen(req, timeout=3).read()
+    except Exception:
+        pass
+    sys.exit(0)
+
+
+def parse_version(v):
+    return tuple(int(x) for x in re.findall(r"\d+", v or "")[:3]) or (0,)
+
+
+def check_update():
+    """启动后在后台看一下 GitHub 上有没有新版本，有的话在界面上提示。失败就算了，不打扰用户。"""
+    time.sleep(5)
+    try:
+        req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/releases/latest",
+                                     headers={"User-Agent": "Mozilla/5.0", "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(req, timeout=15, context=ASSET_CTX) as r:
+            rel = json.loads(r.read().decode("utf-8"))
+    except Exception:
+        return
+    latest = rel.get("tag_name") or ""
+    if parse_version(latest) > parse_version(VERSION):
+        STATE.update(update_info={"version": latest.lstrip("v"), "url": rel.get("html_url") or f"https://github.com/{REPO}/releases/latest",
+                             "notes": (rel.get("body") or "").split("\n")[0][:80]})
 
 
 def load_settings():
@@ -52,6 +117,7 @@ class State:
         self.view = "idle"           # idle / team / self
         self.players = []            # 每个元素：{key, pos, champ, me, loading, ...战绩}
         self.pick = {}               # 选英雄时：{champ, pos, enemies:[英雄id]}
+        self.update_info = None
         self.version = 0
 
     def update(self, **kw):
@@ -72,6 +138,7 @@ class State:
         with self.lock:
             return {"connected": self.connected, "status": self.status, "phase": self.phase,
                     "view": self.view, "players": self.players, "settings": self.settings, "pick": self.pick,
+                    "appVersion": VERSION, "update": self.update_info,
                     "version": self.version}
 
 
@@ -86,6 +153,7 @@ class Worker(threading.Thread):
         self.want_team = threading.Event()
         self.want_refresh = threading.Event()
         self.self_mode = False   # 选英雄时用户切到了“我的战绩”
+        self.game_key = None     # 当前对局双方名单，避免每秒重复查
 
     def run(self):
         while True:
@@ -127,6 +195,30 @@ class Worker(threading.Thread):
             f.result()
         self.s.update(status=f"已加载 {len(entries)} 人 × {want} 场，用时 {time.time() - started:.1f} 秒")
 
+    def load_game(self):
+        """进入加载界面后，双方 10 人的身份是公开的：读当前对局名单，查出双方战绩。
+        （选英雄阶段 Riot 会隐藏对面身份，我们不去绕过。）返回 True 表示这一轮已经处理。"""
+        sess = self.lcu.get("/lol-gameflow/v1/session") or {}
+        gd = sess.get("gameData") or {}
+        one, two = gd.get("teamOne") or [], gd.get("teamTwo") or []
+        if not one or not two:
+            return False
+        me = (self.lcu.me() or {}).get("puuid")
+        mine, theirs = (one, two) if any(p.get("puuid") == me for p in one) else (two, one)
+        key = tuple(str(p.get("puuid") or p.get("summonerId")) for p in mine + theirs)
+        if key == self.game_key:
+            return False  # 同一局：交给下面的通用逻辑（处理“重新查询”等）
+        self.game_key = key
+        entries = [{
+            "key": str(p.get("puuid") or p.get("summonerId")), "puuid": p.get("puuid") or None,
+            "summonerId": p.get("summonerId") or None,
+            "pos": POSITIONS.get((p.get("selectedPosition") or "").lower(), ""),
+            "champ": p.get("championId") or None, "me": p.get("puuid") == me, "enemy": side == "enemy",
+        } for side, team in (("mine", mine), ("enemy", theirs)) for p in team]
+        self.s.update(status="对局开始，正在查询双方 10 人…")
+        self.load_players(entries, "team")
+        return True
+
     def tick(self):
         phase = self.lcu.phase() or ""
         self.s.update(phase=PHASES.get(phase, phase))
@@ -143,11 +235,16 @@ class Worker(threading.Thread):
             self.load_players([entry], "self")
             return
 
+        if phase in ("GameStart", "InProgress", "Reconnect") and not self.self_mode and self.load_game():
+            return
+        if phase == "ChampSelect":
+            self.game_key = None
+
         if phase != "ChampSelect":
             if self.want_refresh.is_set():
                 self.want_refresh.clear()
                 with self.s.lock:
-                    entries = [{k: p.get(k) for k in ("key", "puuid", "summonerId", "pos", "champ", "me")}
+                    entries = [{k: p.get(k) for k in ("key", "puuid", "summonerId", "pos", "champ", "me", "enemy")}
                                for p in self.s.players]
                     view = self.s.view
                 if entries:
@@ -169,6 +266,16 @@ class Worker(threading.Thread):
             "champ": m.get("championId") or m.get("championPickIntent") or None,
             "me": m.get("cellId") == me_cell,
         } for m in team]
+        # 对面身份本来就公开的人（部分非排位模式）也一起查；排位里被隐藏的对面玩家一律跳过，不去还原
+        for m in session.get("theirTeam") or []:
+            puuid = m.get("puuid") or ""
+            if m.get("nameVisibilityType") == "HIDDEN" or not puuid.strip("0-"):
+                continue
+            entries.append({"key": puuid, "puuid": puuid, "summonerId": m.get("summonerId") or None,
+                            "pos": POSITIONS.get((m.get("assignedPosition") or "").lower(), ""),
+                            "pos_raw": (m.get("assignedPosition") or "").lower() or None,
+                            "champ": m.get("championId") or m.get("championPickIntent") or None,
+                            "me": False, "enemy": True})
         key = tuple(e["key"] for e in entries)
         me = next((e for e in entries if e["me"]), {})
         enemies = [m.get("championId") for m in session.get("theirTeam") or [] if m.get("championId")]
@@ -206,7 +313,7 @@ class Worker(threading.Thread):
 # ---------- 窗口控制（Windows API） ----------
 import ctypes.wintypes as _wt
 
-_u32 = ctypes.windll.user32
+_u32 = ctypes.WinDLL("user32")  # 独立的一份：下面的参数类型声明不会影响 pywebview 自己的调用
 # 64 位系统上要写明参数类型，否则 HWND_TOPMOST(-1) 这类句柄会被截断，调用直接失败
 _u32.SetWindowPos.argtypes = [_wt.HWND, _wt.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
 _u32.SetWindowPos.restype = _wt.BOOL
@@ -219,7 +326,7 @@ _u32.IsIconic.argtypes = [_wt.HWND]
 _u32.GetDpiForWindow.argtypes = [_wt.HWND]
 HWND_TOPMOST, HWND_NOTOPMOST = _wt.HWND(-1), _wt.HWND(-2)
 def _find_window():
-    user32 = ctypes.windll.user32
+    user32 = _u32
     found = []
 
     @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
@@ -238,7 +345,7 @@ WINDOW = None  # pywebview 窗口对象（用 Edge 时为 None）
 
 
 def _set_z(hwnd, on):
-    ctypes.windll.user32.SetWindowPos(hwnd, HWND_TOPMOST if on else HWND_NOTOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
+    _u32.SetWindowPos(hwnd, HWND_TOPMOST if on else HWND_NOTOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
 
 
 def set_topmost(on):
@@ -257,10 +364,10 @@ def bring_to_front():
         time.sleep(0.4)
     hwnd = _find_window()
     if hwnd:
-        if ctypes.windll.user32.IsIconic(hwnd):  # 只在最小化时还原，最大化的窗口保持原样
-            ctypes.windll.user32.ShowWindow(hwnd, 9)
+        if _u32.IsIconic(hwnd):  # 只在最小化时还原，最大化的窗口保持原样
+            _u32.ShowWindow(hwnd, 9)
         _set_z(hwnd, True)
-        ctypes.windll.user32.SetForegroundWindow(hwnd)
+        _u32.SetForegroundWindow(hwnd)
         if not STATE.settings.get("topmost", True):
             _set_z(hwnd, False)
 
@@ -296,7 +403,7 @@ class MainWindow:
         hwnd = _find_window()
         if hwnd:
             _set_z(hwnd, True)
-            ctypes.windll.user32.SetForegroundWindow(hwnd)
+            _u32.SetForegroundWindow(hwnd)
             if not STATE.settings.get("topmost", True):
                 _set_z(hwnd, False)
 
@@ -323,18 +430,25 @@ def toggle_overlay():
 
 
 def ensure_desktop_shortcut():
-    """打包版第一次运行时在桌面放一个快捷方式（只放一次，删掉后不会再自动加回来）。"""
-    if not getattr(sys, "frozen", False) or STATE.settings.get("shortcutCreated"):
+    """桌面快捷方式：第一次运行时创建；之后每次启动检查，exe 换了位置就把快捷方式改指过去。
+    用户自己删掉了快捷方式，就不再自动加回来。"""
+    if not getattr(sys, "frozen", False):
         return
     exe = sys.executable.replace("'", "''")
-    ps = ("$d=[Environment]::GetFolderPath('Desktop'); $s=(New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $d 'LOL战绩速览.lnk')); "
-          f"$s.TargetPath='{exe}'; $s.WorkingDirectory='{os.path.dirname(exe)}'; $s.IconLocation='{exe},0'; "
-          "$s.Description='LOL 战绩速览'; $s.Save()")
+    folder = os.path.dirname(sys.executable).replace("'", "''")
+    allow_create = "$false" if STATE.settings.get("shortcutCreated") else "$true"
+    ps = ("$p=Join-Path ([Environment]::GetFolderPath('Desktop')) 'LOL战绩速览.lnk'; $sh=New-Object -ComObject WScript.Shell; "
+          f"$exe='{exe}'; "
+          "if (Test-Path $p) { $s=$sh.CreateShortcut($p); if ($s.TargetPath -ne $exe) { $s.TargetPath=$exe; "
+          f"$s.WorkingDirectory='{folder}'; $s.IconLocation=$exe+',0'; $s.Save(); 'updated' }} else {{ 'ok' }} }} "
+          f"elseif ({allow_create}) {{ $s=$sh.CreateShortcut($p); $s.TargetPath=$exe; $s.WorkingDirectory='{folder}'; "
+          "$s.IconLocation=$exe+',0'; $s.Description='LOL 战绩速览'; $s.Save(); 'created' } else { 'skip' }")
     try:
-        subprocess.run(["powershell", "-NoProfile", "-Command", ps], timeout=20,
+        subprocess.run(["powershell", "-NoProfile", "-Command", ps], timeout=20, capture_output=True,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        STATE.settings["shortcutCreated"] = True
-        save_settings()
+        if not STATE.settings.get("shortcutCreated"):
+            STATE.settings["shortcutCreated"] = True
+            save_settings()
     except Exception as e:
         print("创建桌面快捷方式失败：", e, file=sys.stderr)
 
@@ -347,7 +461,7 @@ OVERLAY_SIZE = (340, 660)
 
 def _find_any(title):
     """按标题找窗口（包括隐藏的）。"""
-    user32, found = ctypes.windll.user32, []
+    user32, found = _u32, []
 
     @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
     def cb(hwnd, _):
@@ -381,14 +495,14 @@ class Overlay:
 
     def _scale(self, hwnd):
         try:
-            return ctypes.windll.user32.GetDpiForWindow(hwnd) / 96
+            return _u32.GetDpiForWindow(hwnd) / 96
         except Exception:
             return 1
 
     def _style(self, hwnd):
         if self.styled:
             return
-        u = ctypes.windll.user32
+        u = _u32
         ex = u.GetWindowLongW(hwnd, -20)
         # WS_EX_TOOLWINDOW：不出现在任务栏和 Alt+Tab；WS_EX_NOACTIVATE：点它也不会抢走游戏的焦点
         u.SetWindowLongW(hwnd, -20, ex | 0x80 | 0x08000000)
@@ -399,7 +513,7 @@ class Overlay:
         if not h or not self.ready:
             return
         self._style(h)
-        u = ctypes.windll.user32
+        u = _u32
         sc = self._scale(h)
         w, hh = int(OVERLAY_SIZE[0] * sc), int((52 if self.collapsed else OVERLAY_SIZE[1]) * sc)
         if not self.pos:
@@ -415,11 +529,11 @@ class Overlay:
             return
         import ctypes.wintypes as wt
         r = wt.RECT()
-        ctypes.windll.user32.GetWindowRect(h, ctypes.byref(r))
+        _u32.GetWindowRect(h, ctypes.byref(r))
         if r.left > OFFSCREEN // 2:
             self.pos = (r.left, r.top)
         # 挪到屏幕外：SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
-        ctypes.windll.user32.SetWindowPos(h, None, OFFSCREEN, OFFSCREEN, 0, 0, 0x0001 | 0x0004 | 0x0010)
+        _u32.SetWindowPos(h, None, OFFSCREEN, OFFSCREEN, 0, 0, 0x0001 | 0x0004 | 0x0010)
         self.visible = False
 
     def set_collapsed(self, on):
@@ -428,7 +542,7 @@ class Overlay:
             h = self.hwnd()
             import ctypes.wintypes as wt
             r = wt.RECT()
-            ctypes.windll.user32.GetWindowRect(h, ctypes.byref(r))
+            _u32.GetWindowRect(h, ctypes.byref(r))
             self.pos = (r.left, r.top)
             self.show()
 
@@ -591,6 +705,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json({"ok": False, "message": str(e)}, code=400)
         elif self.path == "/api/team":
             WORKER.want_team.set()
+        elif self.path == "/api/show":
+            threading.Thread(target=MAIN.show, daemon=True).start()
+        elif self.path == "/api/open-update":
+            if STATE.update_info:
+                webbrowser.open(STATE.update_info["url"])
         elif self.path == "/api/overlay":
             action = body.get("action")
             if action == "close":          # 这一局先不显示
@@ -634,8 +753,17 @@ def find_edge():
 
 
 def main():
+    if "--no-window" not in sys.argv:
+        single_instance()
+        migrate_old_settings()
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     url = f"http://127.0.0.1:{server.server_address[1]}/"
+    try:
+        with open(INSTANCE, "w", encoding="utf-8") as f:
+            json.dump({"port": server.server_address[1], "token": APP_TOKEN}, f)
+    except OSError:
+        pass
+    threading.Thread(target=check_update, daemon=True).start()
     threading.Thread(target=server.serve_forever, daemon=True).start()
     WORKER.start()
     LIVE.start()

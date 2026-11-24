@@ -26,6 +26,14 @@ PLAYERS = [  # summonerId, puuid, 名字, 位置, 胜率倾向, 常用英雄, �
     (4, "p-4", "中路小将", "middle", 0.50, [103, 157, 238, 117], 117),
     (5, "p-5", "上单守门员", "top", 0.46, [86, 122, 157], 0),
 ]
+ENEMY_PLAYERS = [  # 进入游戏后才看得到的敌方 5 人
+    (6, "e-6", "寒冰老手", "bottom", 0.57, [22, 51, 222], 22),
+    (7, "e-7", "风之剑", "middle", 0.49, [157, 238, 103], 157),
+    (8, "e-8", "狐狸精", "jungle", 0.52, [103, 64, 122], 103),
+    (9, "e-9", "深海巨人", "utility", 0.55, [111, 412, 53], 111),
+    (10, "e-10", "剑魔本魔", "top", 0.61, [266, 86, 122], 266),
+]
+ALL_PLAYERS = PLAYERS + ENEMY_PLAYERS
 HISTORY = 1000  # 每人模拟多少场历史
 ENEMIES = [22, 157, 103, 111, 0]  # 对面已选：寒冰、亚索、阿狸、泰坦，还有一个没选
 LANE = {"top": ("TOP", "SOLO"), "jungle": ("JUNGLE", "NONE"), "middle": ("MIDDLE", "SOLO"),
@@ -109,7 +117,7 @@ def games_for(sid):
 
 
 def _make_games(sid):
-    s = next(p for p in PLAYERS if p[0] == sid)
+    s = next(p for p in ALL_PLAYERS if p[0] == sid)
     rnd = random.Random(s[1])
     now = int(time.time() * 1000)
     t, games = now - 40 * 60000, []
@@ -133,7 +141,7 @@ def game_detail(game_id):
     if not me_game:
         return None
     rnd = random.Random(game_id)
-    me = PLAYERS[sid - 1]
+    me = ALL_PLAYERS[sid - 1]
     win = me_game["participants"][0]["stats"]["win"]
     order = ["top", "jungle", "middle", "bottom", "utility"]
     parts, idents = [], []
@@ -142,7 +150,7 @@ def game_detail(game_id):
             pid = len(parts) + 1
             if team == 100 and pos == me[3]:
                 p = dict(me_game["participants"][0])
-                who = {"gameName": me[2], "tagLine": str(1000 + me[0] * 37), "puuid": me[1], "profileIcon": PROFILE_ICONS[me[0]]}
+                who = {"gameName": me[2], "tagLine": str(1000 + me[0] * 37), "puuid": me[1], "profileIcon": PROFILE_ICONS.get(me[0], 29)}
             else:
                 # 队友里经常出现同一个开黑好友
                 friend = team == 100 and pos == "utility" and me[3] != "utility" and rnd.random() < 0.4
@@ -188,13 +196,18 @@ class H(BaseHTTPRequestHandler):
             return self.reply({"message": "unauthorized"}, 401)
         time.sleep(DELAY)
         p = self.path
-        by_id = {str(s[0]): s for s in PLAYERS}
-        by_puuid = {s[1]: s for s in PLAYERS}
+        by_id = {str(s[0]): s for s in ALL_PLAYERS}
+        by_puuid = {s[1]: s for s in ALL_PLAYERS}
         if p == "/lol-gameflow/v1/gameflow-phase":  # MOCK_PHASE=InProgress 模拟游戏中
             return self.reply(os.environ.get("MOCK_PHASE", "ChampSelect"))
         if p == "/lol-gameflow/v1/session":  # 设置环境变量 MOCK_ARAM=1 模拟大乱斗
             mode = "ARAM" if os.environ.get("MOCK_ARAM") else "CLASSIC"
-            return self.reply({"gameData": {"queue": {"gameMode": mode, "id": 450 if mode == "ARAM" else 420}}})
+            data = {"gameData": {"queue": {"gameMode": mode, "id": 450 if mode == "ARAM" else 420}}}
+            if os.environ.get("MOCK_PHASE") in ("InProgress", "GameStart"):  # 游戏中才有双方名单
+                team = lambda ps: [{"puuid": s[1], "summonerId": s[0], "championId": s[6] or s[5][0],
+                                    "selectedPosition": s[3].upper()} for s in ps]
+                data["gameData"].update({"teamOne": team(PLAYERS), "teamTwo": team(ENEMY_PLAYERS)})
+            return self.reply(data)
         if p == "/lol-summoner/v1/current-summoner":
             return self.reply({"summonerId": 1, "puuid": "p-me", "gameName": "峡谷的风", "tagLine": "12345",
                                "profileIconId": PROFILE_ICONS[1], "summonerLevel": 141})
@@ -202,7 +215,12 @@ class H(BaseHTTPRequestHandler):
             return self.reply({"localPlayerCellId": 0, "myTeam": [
                 {"cellId": i, "summonerId": s[0], "puuid": s[1], "assignedPosition": s[3], "championId": s[6],
                  "championPickIntent": 0} for i, s in enumerate(PLAYERS)],
-                "theirTeam": [{"cellId": 5 + i, "championId": c} for i, c in enumerate(ENEMIES)]})
+                # 排位：对面身份隐藏（puuid 为空）；设 MOCK_VISIBLE=1 模拟对面身份公开的模式
+                "theirTeam": [{"cellId": 5 + i, "championId": c,
+                               **({"puuid": ENEMY_PLAYERS[i][1], "summonerId": ENEMY_PLAYERS[i][0], "nameVisibilityType": "VISIBLE",
+                                   "assignedPosition": ENEMY_PLAYERS[i][3]} if os.environ.get("MOCK_VISIBLE") else
+                                  {"puuid": "", "nameVisibilityType": "HIDDEN", "obfuscatedPuuid": "xxxx"})}
+                              for i, c in enumerate(ENEMIES)]})
         if m := re.fullmatch(r"/lol-match-history/v1/games/(\d+)", p):
             g = game_detail(int(m.group(1)))
             return self.reply(g) if g else self.reply({}, 404)
@@ -227,7 +245,7 @@ class H(BaseHTTPRequestHandler):
         if m := re.fullmatch(r"/lol-summoner/v1/summoners/(\d+)", p):
             s = by_id.get(m.group(1))
             return self.reply({"summonerId": s[0], "puuid": s[1], "gameName": s[2], "tagLine": str(1000 + s[0] * 37),
-                               "summonerLevel": 100 + s[0] * 41, "profileIconId": PROFILE_ICONS[s[0]]}) if s else self.reply({}, 404)
+                               "summonerLevel": 100 + s[0] * 41, "profileIconId": PROFILE_ICONS.get(s[0], 29)}) if s else self.reply({}, 404)
         if m := re.fullmatch(r"/lol-ranked/v1/ranked-stats/(.+)", p):
             tier, div = {"p-2": ("DIAMOND", "III"), "p-3": ("SILVER", "I"), "p-4": ("EMERALD", "IV"),
                          "p-5": ("", "")}.get(m.group(1), ("PLATINUM", "II"))

@@ -57,6 +57,10 @@ img { display: block; }
 .sideb svg { width: 19px; height: 19px; }
 .sideb:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
 .sideb.on { color: #b9a8ff; }
+.sideb.upd { color: #fff; background: #00a383; position: relative; }
+.sideb.upd::after { content: "新"; position: absolute; top: -4px; right: -4px; font-size: 10px; background: #e84057; color: #fff;
+                    border-radius: 999px; padding: 0 4px; line-height: 15px; }
+.ver { font-size: 10px; color: var(--text-3); margin-top: 6px; font-family: var(--num); }
 .col { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .titlebar { height: 50px; flex: none; display: flex; align-items: center; background: var(--top); border-bottom: 1px solid var(--line); position: relative; z-index: 20; }
 .drag { align-self: stretch; display: flex; align-items: center; }
@@ -555,6 +559,34 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
 .drawer { width: min(900px, 76%) !important; }
 .badge.mvp { background: #ffb900 !important; color: #1b1b20 !important; }
 .hint { font-size: 12px; color: var(--text-3); }
+/* 游戏中 10 人：两排紧凑卡片 */
+.team.ten { grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.team.ten .hero { flex: 0 0 36%; min-height: 0; }
+.team.ten .hero .art { object-position: 50% 18%; }
+.team.ten .hero-top { top: 8px; left: 8px; right: 8px; }
+.team.ten .hero-bottom { left: 12px; right: 12px; bottom: 8px; }
+.team.ten .pname b { font-size: 15px; }
+.team.ten .pick-name { font-size: 11px; margin-bottom: 0; }
+.team.ten .rank { margin-top: 2px; font-size: 11px; }
+.team.ten .body { padding: 4px 12px 10px; }
+.team.ten .big { font-size: 28px; } .team.ten .big small { font-size: 14px; }
+.team.ten .kda .v { font-size: 17px; }
+.team.ten .cap { margin-top: 2px; }
+.team.ten .wl, .team.ten .wl-text, .team.ten .form .label { display: none; }
+.team.ten .mini { margin-top: 8px; row-gap: 2px; }
+.team.ten .mr { height: 24px; }
+.team.ten .mr img, .team.ten .mr .ph { width: 20px; height: 20px; }
+.team.ten .mr .n em { display: none; }
+.team.ten .pool { margin-top: 6px; padding-top: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.team.ten .pc { grid-template-columns: 26px 1fr; gap: 6px; }
+.team.ten .pc img, .team.ten .pc .ph { width: 26px; height: 26px; border-radius: 6px; }
+.team.ten .pc > div:nth-child(2) { display: none; }
+.team.ten .pc-wr { font-size: 12px; text-align: left; }
+.team.ten .form { margin-top: 8px; }
+.team.ten .form-bar i { height: 9px; }
+.team.ten .notes { margin-top: 6px; min-height: 0; }
+.card.enemy { border-color: rgba(232, 64, 87, .3); }
+.card.enemy .pos { border-color: rgba(232, 64, 87, .65); color: #ffb3ba; }
 .tbtn.more { align-self: center; margin: 6px 0 4px; height: 34px; padding: 0 22px; background: var(--card); flex: none; }
 .warn { font-size: 12px; color: var(--mid); }
 .trendline svg { width: 100%; height: 110px; display: block; }
@@ -598,9 +630,11 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
     <button class="navb" data-tab="tier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>梯队</button>
   </div>
   <div class="grow pywebview-drag-region" style="width:100%"></div>
+  <button class="sideb upd" id="upd" title="" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg></button>
   <button class="sideb" id="ovl" title="游戏内悬浮窗：进游戏自动显示（需要无边框或窗口模式）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><rect x="12" y="7" width="6" height="5" rx="1" fill="currentColor"/></svg></button>
   <button class="sideb" id="pin" title="窗口置顶"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg></button>
   <button class="sideb" id="refresh" title="重新查询"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
+  <div class="ver" id="ver"></div>
 </aside>
 <div class="col">
 <div class="titlebar">
@@ -755,7 +789,7 @@ function hero(p, s, solo = false) {
              : `<div class="pick-name none">${p.loading ? "　" : "尚未选择英雄"}</div>`;
   return `<div class="hero${ghost ? " ghost" : ""}">
     ${artId ? `<img class="art" src="${art("load", artId)}" alt="" onerror="this.remove()">` : ""}
-    <div class="hero-top"><span class="pos">${esc(p.pos || (solo ? "我的战绩" : "玩家"))}</span>${p.me ? '<span class="me-flag">我</span>' : ""}</div>
+    <div class="hero-top"><span class="pos">${p.enemy ? "敌方 · " : ""}${esc(p.pos || (solo ? "我的战绩" : "玩家"))}</span>${p.me ? '<span class="me-flag">我</span>' : ""}</div>
     <div class="hero-bottom">${pick}
       <div class="pname"><b>${esc(p.name || (p.loading ? "查询中…" : ""))}</b>${p.tag ? `<span>#${esc(p.tag)}</span>` : ""}</div>
       <div class="rank">${p.loading ? '<span class="c-dim">正在读取段位…</span>' : rankLine(p.rank)}</div>
@@ -796,7 +830,7 @@ function cardBody(p, s) {
 }
 function card(p, { clickable = true, solo = false } = {}) {
   const enter = seen.has(p.key) ? "" : " enter";
-  const cls = `card${p.me ? " me" : ""}${selected === p.key ? " sel" : ""}${enter}`;
+  const cls = `card${p.me ? " me" : ""}${p.enemy ? " enemy" : ""}${selected === p.key ? " sel" : ""}${enter}`;
   const i = (state.players || []).indexOf(p);
   const attrs = `class="${cls}" style="animation-delay:${Math.max(0, i) * 60}ms"${clickable && !p.loading && !p.error ? ` data-key="${esc(p.key)}"` : ""}`;
   if (p.loading) return `<div ${attrs}>${skeleton(p, solo)}</div>`;
@@ -876,6 +910,13 @@ function teamView() {
   if (!players.length) return emptyView();
   if (!players.some(p => p.key === selected && !p.loading)) selected = null;
   const sel = players.find(p => p.key === selected);
+  if (players.some(p => p.enemy)) {
+    // 游戏中：上排我方、下排敌方，按位置排好，上下对齐就是每条线的对位
+    const order = p => (POS_ORDER.indexOf(Object.keys(POS).find(k => POS[k] === p.pos)) + 1) || 9;
+    const mine = players.filter(p => !p.enemy).sort((a, b) => order(a) - order(b));
+    const theirs = players.filter(p => p.enemy).sort((a, b) => order(a) - order(b));
+    return `<div class="team ten">${mine.map(p => card(p)).join("")}${theirs.map(p => card(p)).join("")}</div>${sel ? drawer(sel) : ""}`;
+  }
   return `<div class="team">${players.map(p => card(p)).join("")}</div>${sel ? drawer(sel) : ""}`;
 }
 
@@ -1245,6 +1286,10 @@ function render() {
   document.querySelectorAll("#otier button").forEach(b => b.classList.toggle("on", b.dataset.v === otier));
   $("#pin").classList.toggle("on", !!state.settings.topmost);
   $("#ovl").classList.toggle("on", state.settings.overlay !== false);
+  const up = state.update;
+  $("#upd").style.display = up ? "" : "none";
+  if (up) $("#upd").title = `发现新版本 v${up.version}（当前 v${state.appVersion}），点击去下载`;
+  $("#ver").textContent = "v" + (state.appVersion || "");
   $("#ovl").style.display = state.native ? "" : "none";
   $("#winctl").style.display = state.native ? "" : "none";
 
@@ -1382,6 +1427,7 @@ $("#refresh").onclick = () => {
   post("/api/refresh");
 };
 $("#pin").onclick = () => post("/api/settings", { topmost: !state?.settings.topmost });
+$("#upd").onclick = () => { post("/api/open-update"); toast(`正在打开 v${state.update.version} 的下载页面，下载后替换旧的 exe 即可`); };
 $("#ovl").onclick = () => {
   const on = state?.settings.overlay === false;
   post("/api/settings", { overlay: on });

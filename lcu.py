@@ -13,7 +13,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 if getattr(sys, "frozen", False):              # 打包成 exe 后
     RES = sys._MEIPASS                          # 界面文件在 exe 内部
-    HERE = os.path.dirname(sys.executable)      # 缓存、设置放在 exe 旁边
+    # 缓存、设置、浏览器数据放在 %LOCALAPPDATA%\LOLStats，不在 exe 旁边乱生成文件
+    HERE = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "LOLStats")
+    os.makedirs(HERE, exist_ok=True)
 else:
     RES = HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(HERE, "cache")

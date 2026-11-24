@@ -7,3 +7,4 @@ cache/
 settings.json
 .window/
 mock_assets/
+instance.json
