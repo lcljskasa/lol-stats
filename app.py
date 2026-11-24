@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import live
 import opgg
+from tray import Tray
 from assets import ASSETS
 from lcu import HERE, LCU, RES, NotConnected, POSITIONS
 
@@ -251,6 +252,9 @@ def set_topmost(on):
 
 def bring_to_front():
     """进入选英雄时把窗口弹到最前面。Windows 不让后台程序直接抢焦点，所以先临时置顶再恢复。"""
+    if MAIN.hidden:
+        MAIN.show()
+        time.sleep(0.4)
     hwnd = _find_window()
     if hwnd:
         if ctypes.windll.user32.IsIconic(hwnd):  # 只在最小化时还原，最大化的窗口保持原样
@@ -259,6 +263,80 @@ def bring_to_front():
         ctypes.windll.user32.SetForegroundWindow(hwnd)
         if not STATE.settings.get("topmost", True):
             _set_z(hwnd, False)
+
+
+# ---------- 主窗口：缩到托盘 / 从托盘显示 ----------
+class MainWindow:
+    """缩到托盘时把页面换成空白页，网页内核占的内存就能释放掉；显示时再把界面加载回来。"""
+
+    def __init__(self):
+        self.hidden = False
+        self.url = None
+        self.tray = None
+
+    def to_tray(self):
+        if WINDOW is None:
+            return
+        if not (self.tray and self.tray.ok):  # 没有托盘就普通最小化
+            WINDOW.minimize()
+            return
+        WINDOW.hide()
+        self.hidden = True
+        WINDOW.load_html("<body style='background:#1b1b20'></body>")
+        self.tray.tell_once()
+
+    def show(self):
+        if WINDOW is None:
+            return
+        if self.hidden:
+            self.hidden = False
+            WINDOW.load_url(self.url)
+        WINDOW.show()
+        WINDOW.restore()
+        hwnd = _find_window()
+        if hwnd:
+            _set_z(hwnd, True)
+            ctypes.windll.user32.SetForegroundWindow(hwnd)
+            if not STATE.settings.get("topmost", True):
+                _set_z(hwnd, False)
+
+    def quit(self):
+        if self.tray:
+            self.tray.stop()
+        os._exit(0)
+
+
+MAIN = MainWindow()
+
+
+def save_settings():
+    with open(SETTINGS, "w", encoding="utf-8") as f:
+        json.dump(STATE.settings, f)
+
+
+def toggle_overlay():
+    with STATE.lock:
+        STATE.settings["overlay"] = not STATE.settings.get("overlay", True)
+        LIVE.dismissed = False
+        STATE.version += 1
+    save_settings()
+
+
+def ensure_desktop_shortcut():
+    """打包版第一次运行时在桌面放一个快捷方式（只放一次，删掉后不会再自动加回来）。"""
+    if not getattr(sys, "frozen", False) or STATE.settings.get("shortcutCreated"):
+        return
+    exe = sys.executable.replace("'", "''")
+    ps = ("$d=[Environment]::GetFolderPath('Desktop'); $s=(New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $d 'LOL战绩速览.lnk')); "
+          f"$s.TargetPath='{exe}'; $s.WorkingDirectory='{os.path.dirname(exe)}'; $s.IconLocation='{exe},0'; "
+          "$s.Description='LOL 战绩速览'; $s.Save()")
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-Command", ps], timeout=20,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        STATE.settings["shortcutCreated"] = True
+        save_settings()
+    except Exception as e:
+        print("创建桌面快捷方式失败：", e, file=sys.stderr)
 
 
 # ---------- 游戏内悬浮窗 ----------
@@ -358,13 +436,19 @@ class Overlay:
 OV = Overlay()
 
 
+BLANK = "<body style='margin:0;background:#1b1b20'></body>"
+
+
 class LiveWatcher(threading.Thread):
-    """每秒读一次游戏内实时数据；游戏开着就显示悬浮窗，关了就隐藏。"""
+    """每秒读一次游戏内实时数据；游戏开着就显示悬浮窗，关了就隐藏。
+    不在游戏里时悬浮窗换成空白页（省内存、不再每秒刷新），进游戏才加载真正的页面。"""
 
     def __init__(self):
         super().__init__(daemon=True)
         self.data = {"active": False}
         self.dismissed = False   # 这一局里用户手动关掉了悬浮窗
+        self.url = None          # 悬浮窗页面地址
+        self.page = False        # 悬浮窗现在是不是真正的页面（不是空白页）
 
     def run(self):
         while True:
@@ -376,10 +460,19 @@ class LiveWatcher(threading.Thread):
             if not self.data.get("active"):
                 self.dismissed = False
             want = self.data.get("active") and STATE.settings.get("overlay", True) and not self.dismissed
-            if OVERLAY is not None:
+            if OVERLAY is not None and OV.ready:
                 try:
-                    OV.show() if want and not OV.visible else None
-                    OV.hide() if not want and OV.visible else None
+                    if want and not self.page:      # 进游戏：先加载页面，等它画好再挪进屏幕
+                        OVERLAY.load_url(self.url)
+                        self.page = True
+                        time.sleep(1.2)
+                    if want and not OV.visible:
+                        OV.show()
+                    if not want and OV.visible:
+                        OV.hide()
+                    if not self.data.get("active") and self.page and not OV.visible:  # 对局结束：卸载页面
+                        OVERLAY.load_html(BLANK)
+                        self.page = False
                 except Exception as e:
                     print("悬浮窗出错：", e, file=sys.stderr)
             time.sleep(1)
@@ -403,7 +496,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.send_header("Cache-Control", "max-age=86400" if cache else "no-store")
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass  # 页面被关掉 / 卸载时浏览器中断了请求，正常情况
 
     def trusted(self):
         """只接受发给 127.0.0.1 的请求（防 DNS 重绑定），接口还要带上启动时生成的令牌（防其他网页调用）。"""
@@ -509,12 +605,12 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/window" and WINDOW is not None:
             action = body.get("action")
             if action == "minimize":
-                WINDOW.minimize()
+                MAIN.to_tray()
             elif action == "maximize":
                 WINDOW.restore() if getattr(WINDOW, "_maxed", False) else WINDOW.maximize()
                 WINDOW._maxed = not getattr(WINDOW, "_maxed", False)
             elif action == "close":
-                WINDOW.destroy()
+                MAIN.quit()
         elif self.path == "/api/settings":
             with STATE.lock:
                 if "topmost" in body:
@@ -523,8 +619,7 @@ class Handler(BaseHTTPRequestHandler):
                 if "overlay" in body:
                     STATE.settings["overlay"] = bool(body["overlay"])
                     LIVE.dismissed = False
-                with open(SETTINGS, "w", encoding="utf-8") as f:
-                    json.dump(STATE.settings, f)
+                save_settings()
                 STATE.version += 1
         self.send(b"{}")
 
@@ -560,7 +655,8 @@ def main():
                                        on_top=STATE.settings.get("topmost", True))
         global OVERLAY
         # 悬浮窗：建在屏幕外，进游戏时再挪进屏幕（不激活，不抢游戏焦点）
-        OVERLAY = webview.create_window(OVERLAY_TITLE, url + "overlay", width=OVERLAY_SIZE[0], height=OVERLAY_SIZE[1],
+        LIVE.url = url + "overlay"
+        OVERLAY = webview.create_window(OVERLAY_TITLE, html=BLANK, width=OVERLAY_SIZE[0], height=OVERLAY_SIZE[1],
                                         x=OFFSCREEN, y=OFFSCREEN, min_size=(200, 40), frameless=True, easy_drag=False, on_top=True,
                                         background_color="#1B1B20", focus=False)
 
@@ -573,7 +669,12 @@ def main():
 
         OVERLAY.events.shown += lambda: threading.Thread(target=hide_overlay_at_start, daemon=True).start()
         # 关掉主窗口就整个退出（否则屏幕外的悬浮窗会让程序一直在后台运行）
-        WINDOW.events.closed += lambda: os._exit(0)
+        WINDOW.events.closed += lambda: MAIN.quit()
+        MAIN.url = url
+        MAIN.tray = Tray(os.path.join(RES, "icon.ico"), on_show=MAIN.show, on_toggle_overlay=toggle_overlay,
+                         overlay_on=lambda: STATE.settings.get("overlay", True), on_quit=MAIN.quit)
+        MAIN.tray.start()
+        threading.Thread(target=ensure_desktop_shortcut, daemon=True).start()
         webview.start(private_mode=False, storage_path=os.path.join(HERE, ".window"))
         return
 

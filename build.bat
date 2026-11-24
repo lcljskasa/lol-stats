@@ -10,8 +10,10 @@ if not errorlevel 1 (
   echo BUILD FAILED: LOLStats.exe is still running. Close it first.
   exit /b 1
 )
-.venv\Scripts\pyinstaller --noconfirm --clean --onefile --windowed ^
-  --name LOLStats --icon icon.ico --add-data "web;web" app.py
+rem --uac-admin: double-clicking asks for administrator rights (needed to read the Tencent client)
+.venv\Scripts\pyinstaller --noconfirm --clean --onefile --windowed --uac-admin ^
+  --name LOLStats --icon icon.ico --add-data "web;web" --add-data "icon.ico;." ^
+  --hidden-import pystray._win32 app.py
 if errorlevel 1 (
   echo BUILD FAILED: see the PyInstaller output above.
   exit /b 1

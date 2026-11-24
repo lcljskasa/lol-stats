@@ -225,9 +225,14 @@ function render() {
   $("#main").scrollTop = top;
 }
 
+let lastJson = "";
 async function poll() {
+  if (document.hidden) return;
   try {
-    live = await getJSON("/api/live");
+    const raw = await (await api("/api/live")).text();
+    if (raw === lastJson && live) return;  // 数据没变化就不重画
+    lastJson = raw;
+    live = JSON.parse(raw);
     collapsed = !!live.collapsed;
     if (live.active && !Object.keys(assets.champions).length) assets = await getJSON("/api/assets");
     if (live.active) loadBuild();

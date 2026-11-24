@@ -5,6 +5,7 @@
 """
 import hashlib
 import json
+from collections import OrderedDict
 import os
 import ssl
 import threading
@@ -60,7 +61,8 @@ class Assets:
     def __init__(self):
         self.lcu = None
         self._lists = {}
-        self._bytes = {}
+        self._bytes = OrderedDict()   # 最近用过的图片，总量超过 30MB 就丢掉最久没用的
+        self._bytes_size = 0
         self._lock = threading.Lock()
 
     def set_lcu(self, lcu):
@@ -127,8 +129,10 @@ class Assets:
     # ---- 图片 ----
     def _get_bytes(self, path):
         """先找客户端，没有再去 CommunityDragon。"""
-        if path in self._bytes:
-            return self._bytes[path]
+        with self._lock:
+            if path in self._bytes:
+                self._bytes.move_to_end(path)
+                return self._bytes[path]
         body = None
         if self.lcu:
             try:
@@ -138,7 +142,13 @@ class Assets:
         if body is None:
             body = fetch_cached(cdragon_url(path), max_age=30 * 86400)
         if body:
-            self._bytes[path] = body
+            with self._lock:
+                if path not in self._bytes:
+                    self._bytes[path] = body
+                    self._bytes_size += len(body)
+                while self._bytes_size > 30 * 1024 * 1024 and len(self._bytes) > 1:
+                    _, old = self._bytes.popitem(last=False)
+                    self._bytes_size -= len(old)
         return body
 
     def _champion(self, cid):

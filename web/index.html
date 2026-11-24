@@ -118,7 +118,7 @@ main { height: calc(100vh - 52px); padding: 16px; position: relative; }
   background: linear-gradient(180deg, rgba(7, 9, 13, .35) 0%, transparent 28%, transparent 45%, rgba(13, 17, 23, .85) 80%, var(--card) 100%); }
 .hero-top { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; z-index: 2; }
 .pos { font-size: 11px; letter-spacing: .14em; color: var(--gold-hi); padding: 3px 9px; border-radius: 999px;
-       background: rgba(7, 9, 13, .55); border: 1px solid rgba(200, 170, 110, .35); backdrop-filter: blur(6px); }
+       background: rgba(7, 9, 13, .7); border: 1px solid rgba(139, 109, 255, .4); }
 .me-flag { font-size: 11px; color: #1a1408; background: var(--gold); padding: 3px 9px; border-radius: 999px; font-weight: 600; }
 .hero-bottom { position: absolute; left: 16px; right: 16px; bottom: 12px; z-index: 2; }
 .pick-name { font-size: 12px; color: var(--gold); letter-spacing: .06em; margin-bottom: 2px; text-shadow: 0 1px 6px #000; }
@@ -195,7 +195,7 @@ main { height: calc(100vh - 52px); padding: 16px; position: relative; }
 .g .cs { text-align: right; }
 
 /* ================= 抽屉 / 弹窗 ================= */
-.scrim { position: absolute; inset: 0; background: rgba(4, 6, 9, .6); backdrop-filter: blur(3px); z-index: 30; }
+.scrim { position: absolute; inset: 0; background: rgba(10, 10, 14, .72); z-index: 30; }
 .scrim.enter { animation: fade .2s both; }
 @keyframes fade { from { opacity: 0; } }
 .drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(760px, 62%); z-index: 31; background: #0b0f14;
@@ -519,6 +519,7 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
 .mg { display: grid; grid-template-columns: 6px 92px 1fr 220px; align-items: center; min-height: 96px; border-radius: 8px; overflow: hidden;
       cursor: pointer; transition: filter .15s; flex: none; }
 .mg:hover { filter: brightness(1.12); }
+.mg { content-visibility: auto; contain-intrinsic-size: auto 96px; }  /* 屏幕外的对局行不绘制 */
 .mg.w { background: var(--win-bg); } .mg.l { background: var(--loss-bg); }
 .mg .bar { align-self: stretch; } .mg.w .bar { background: var(--win); } .mg.l .bar { background: var(--loss); }
 .mg-info { padding: 0 12px; font-size: 12px; color: var(--text-2); line-height: 1.5; }
@@ -616,7 +617,7 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
     </div>
   </div>
   <div class="winctl" id="winctl">
-    <button data-a="minimize" title="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg></button>
+    <button data-a="minimize" title="最小化到托盘"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg></button>
     <button data-a="maximize" title="最大化"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor"/></svg></button>
     <button data-a="close" class="close" title="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></button>
   </div>
@@ -676,7 +677,7 @@ const wrTone = wr => wr == null ? "" : wr >= .52 ? "c-good" : wr < .48 ? "c-bad"
 const art = (kind, id) => `/art/${kind}/${id}`;
 function img(kind, id, cls = "", title = "") {
   if (!id) return `<div class="ph ${cls}"></div>`;
-  return `<img class="${cls}" src="${art(kind, id)}" alt="" title="${esc(title)}" onerror="this.style.visibility='hidden'">`;
+  return `<img class="${cls}" src="${art(kind, id)}" alt="" title="${esc(title)}" decoding="async" loading="lazy" onerror="this.style.visibility='hidden'">`;
 }
 const itemImg = id => img("item", id, "", assets.items[id]);
 const perkImg = (id, cls = "") => img("perk", id, cls, assets.perks[id]);
@@ -1270,6 +1271,7 @@ async function loadAssets() {
   try { assets = await getJSON("/api/assets"); render(); } catch (e) { assetsFor = null; }
 }
 async function poll() {
+  if (document.hidden) return;  // 窗口最小化 / 在托盘里时不刷新
   try {
     const next = await (await api("/api/state" + (state ? "?v=" + state.version : ""))).json();
     if (!("players" in next)) next.players = state?.players || [];
