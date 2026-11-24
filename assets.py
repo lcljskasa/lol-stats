@@ -99,6 +99,7 @@ class Assets:
     def names(self):
         out = {kind: {d["id"]: d.get("name", "") for d in self._list(kind)} for kind in LISTS}
         # 每个符文系的符文树：{系id: [[基石...], [第1行...], [第2行...], [第3行...]]}，以及属性碎片的 3 行
+        out["prices"] = {d["id"]: d.get("priceTotal", 0) for d in self._list("items")}
         out["slots"], out["shards"] = {}, []
         for st in self._list("styles"):
             rows = [s.get("perks") or [] for s in st.get("slots") or []]

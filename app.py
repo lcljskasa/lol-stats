@@ -13,6 +13,7 @@ import webbrowser
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import live
 import opgg
 from assets import ASSETS
 from lcu import HERE, LCU, RES, NotConnected, POSITIONS
@@ -27,9 +28,10 @@ PHASES = {"None": "在大厅", "Lobby": "在房间里", "Matchmaking": "排队�
 
 def load_settings():
     try:
-        return {"games": 100, "topmost": True, **json.load(open(SETTINGS, encoding="utf-8"))}
+        with open(SETTINGS, encoding="utf-8") as f:
+            return {"games": 100, "topmost": True, "overlay": True, **json.load(f)}
     except (OSError, ValueError):
-        return {"games": 100, "topmost": True}
+        return {"games": 100, "topmost": True, "overlay": True}
 
 
 class State:
@@ -196,6 +198,20 @@ class Worker(threading.Thread):
 
 
 # ---------- 窗口控制（Windows API） ----------
+import ctypes.wintypes as _wt
+
+_u32 = ctypes.windll.user32
+# 64 位系统上要写明参数类型，否则 HWND_TOPMOST(-1) 这类句柄会被截断，调用直接失败
+_u32.SetWindowPos.argtypes = [_wt.HWND, _wt.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+_u32.SetWindowPos.restype = _wt.BOOL
+_u32.ShowWindow.argtypes = [_wt.HWND, ctypes.c_int]
+_u32.GetWindowLongW.argtypes = [_wt.HWND, ctypes.c_int]
+_u32.SetWindowLongW.argtypes = [_wt.HWND, ctypes.c_int, ctypes.c_long]
+_u32.GetWindowRect.argtypes = [_wt.HWND, ctypes.POINTER(_wt.RECT)]
+_u32.SetForegroundWindow.argtypes = [_wt.HWND]
+_u32.IsIconic.argtypes = [_wt.HWND]
+_u32.GetDpiForWindow.argtypes = [_wt.HWND]
+HWND_TOPMOST, HWND_NOTOPMOST = _wt.HWND(-1), _wt.HWND(-2)
 def _find_window():
     user32 = ctypes.windll.user32
     found = []
@@ -216,7 +232,7 @@ WINDOW = None  # pywebview 窗口对象（用 Edge 时为 None）
 
 
 def _set_z(hwnd, on):
-    ctypes.windll.user32.SetWindowPos(hwnd, -1 if on else -2, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
+    ctypes.windll.user32.SetWindowPos(hwnd, HWND_TOPMOST if on else HWND_NOTOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
 
 
 def set_topmost(on):
@@ -240,14 +256,142 @@ def bring_to_front():
             _set_z(hwnd, False)
 
 
+# ---------- 游戏内悬浮窗 ----------
+OVERLAY_TITLE = "战绩速览 · 悬浮窗"
+OVERLAY = None  # pywebview 窗口对象
+OVERLAY_SIZE = (340, 660)
+
+
+def _find_any(title):
+    """按标题找窗口（包括隐藏的）。"""
+    user32, found = ctypes.windll.user32, []
+
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+    def cb(hwnd, _):
+        buf = ctypes.create_unicode_buffer(256)
+        user32.GetWindowTextW(hwnd, buf, 256)
+        if buf.value == title:
+            found.append(hwnd)
+        return True
+
+    user32.EnumWindows(cb, 0)
+    return found[0] if found else None
+
+
+OFFSCREEN = -30000
+
+
+class Overlay:
+    """悬浮窗的显示 / 隐藏都用 Windows API 做，并且不激活窗口，避免把游戏切到后台。
+
+    “隐藏”其实是把窗口挪到屏幕外：如果真的隐藏窗口，网页内核会以为窗口不可见而停止绘制，再显示时就是一片空白。"""
+
+    def __init__(self):
+        self.visible = False
+        self.ready = False       # 启动时先藏好，之后才允许显示
+        self.collapsed = False
+        self.pos = None          # 上次的位置（物理像素）
+        self.styled = False
+
+    def hwnd(self):
+        return _find_any(OVERLAY_TITLE)
+
+    def _scale(self, hwnd):
+        try:
+            return ctypes.windll.user32.GetDpiForWindow(hwnd) / 96
+        except Exception:
+            return 1
+
+    def _style(self, hwnd):
+        if self.styled:
+            return
+        u = ctypes.windll.user32
+        ex = u.GetWindowLongW(hwnd, -20)
+        # WS_EX_TOOLWINDOW：不出现在任务栏和 Alt+Tab；WS_EX_NOACTIVATE：点它也不会抢走游戏的焦点
+        u.SetWindowLongW(hwnd, -20, ex | 0x80 | 0x08000000)
+        self.styled = True
+
+    def show(self):
+        h = self.hwnd()
+        if not h or not self.ready:
+            return
+        self._style(h)
+        u = ctypes.windll.user32
+        sc = self._scale(h)
+        w, hh = int(OVERLAY_SIZE[0] * sc), int((52 if self.collapsed else OVERLAY_SIZE[1]) * sc)
+        if not self.pos:
+            self.pos = (u.GetSystemMetrics(0) - w - int(24 * sc), int(110 * sc))
+        # 置顶，带位置和大小，SWP_NOACTIVATE | SWP_SHOWWINDOW
+        if not u.SetWindowPos(h, HWND_TOPMOST, self.pos[0], self.pos[1], w, hh, 0x0010 | 0x0040):
+            raise OSError(f"SetWindowPos 失败：{ctypes.GetLastError()}")
+        self.visible = True
+
+    def hide(self):
+        h = self.hwnd()
+        if not h or not self.visible:
+            return
+        import ctypes.wintypes as wt
+        r = wt.RECT()
+        ctypes.windll.user32.GetWindowRect(h, ctypes.byref(r))
+        if r.left > OFFSCREEN // 2:
+            self.pos = (r.left, r.top)
+        # 挪到屏幕外：SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+        ctypes.windll.user32.SetWindowPos(h, None, OFFSCREEN, OFFSCREEN, 0, 0, 0x0001 | 0x0004 | 0x0010)
+        self.visible = False
+
+    def set_collapsed(self, on):
+        self.collapsed = on
+        if self.visible:
+            h = self.hwnd()
+            import ctypes.wintypes as wt
+            r = wt.RECT()
+            ctypes.windll.user32.GetWindowRect(h, ctypes.byref(r))
+            self.pos = (r.left, r.top)
+            self.show()
+
+
+OV = Overlay()
+
+
+class LiveWatcher(threading.Thread):
+    """每秒读一次游戏内实时数据；游戏开着就显示悬浮窗，关了就隐藏。"""
+
+    def __init__(self):
+        super().__init__(daemon=True)
+        self.data = {"active": False}
+        self.dismissed = False   # 这一局里用户手动关掉了悬浮窗
+
+    def run(self):
+        while True:
+            try:
+                raw = live.fetch()
+                self.data = live.summarize(raw) if raw else {"active": False}
+            except Exception as e:
+                self.data = {"active": False, "error": str(e)}
+            if not self.data.get("active"):
+                self.dismissed = False
+            want = self.data.get("active") and STATE.settings.get("overlay", True) and not self.dismissed
+            if OVERLAY is not None:
+                try:
+                    OV.show() if want and not OV.visible else None
+                    OV.hide() if not want and OV.visible else None
+                except Exception as e:
+                    print("悬浮窗出错：", e, file=sys.stderr)
+            time.sleep(1)
+
+
+LIVE = LiveWatcher()
+
+
 # ---------- 本地网页服务 ----------
 STATE = State()
 WORKER = Worker(STATE)
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):
-        pass
+    def log_message(self, fmt, *a):
+        if os.environ.get("LOLSTATS_DEBUG"):  # 调试时打印每个请求
+            print(self.headers.get("Host"), fmt % a, file=sys.stderr, flush=True)
 
     def send(self, body, ctype="application/json; charset=utf-8", code=200, cache=False):
         self.send_response(code)
@@ -264,8 +408,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.trusted():
             return self.send(b"{}", code=403)
-        if self.path in ("/", "/index.html"):
-            with open(os.path.join(RES, "web", "index.html"), "rb") as f:
+        if self.path in ("/", "/index.html", "/overlay"):
+            name = "overlay.html" if self.path == "/overlay" else "index.html"
+            with open(os.path.join(RES, "web", name), "rb") as f:
                 page = f.read().replace(b"__APP_TOKEN__", APP_TOKEN.encode())
             return self.send(page, "text/html; charset=utf-8")
         url = urllib.parse.urlparse(self.path)
@@ -289,6 +434,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if route == "/api/assets":
                 return self.json(ASSETS.names())
+            if route == "/api/live":
+                return self.json({**LIVE.data, "overlay": STATE.settings.get("overlay", True),
+                                  "collapsed": OV.collapsed})
             if route == "/api/opgg/build":
                 return self.json(opgg.build(int(q["champ"]), q.get("pos") or None, q.get("mode", "ranked"),
                                             q.get("tier", "emerald_plus"), int(q["target"]) if q.get("target") else None))
@@ -340,6 +488,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json({"ok": False, "message": str(e)}, code=400)
         elif self.path == "/api/team":
             WORKER.want_team.set()
+        elif self.path == "/api/overlay":
+            action = body.get("action")
+            if action == "close":          # 这一局先不显示
+                LIVE.dismissed = True
+                OV.hide()
+            elif action in ("collapse", "expand"):
+                OV.set_collapsed(action == "collapse")
+            elif action == "test":        # 主窗口的「预览悬浮窗」
+                OV.show()
         elif self.path == "/api/refresh":
             WORKER.want_refresh.set()
         elif self.path == "/api/window" and WINDOW is not None:
@@ -358,6 +515,9 @@ class Handler(BaseHTTPRequestHandler):
                 if "topmost" in body:
                     STATE.settings["topmost"] = bool(body["topmost"])
                     set_topmost(STATE.settings["topmost"])
+                if "overlay" in body:
+                    STATE.settings["overlay"] = bool(body["overlay"])
+                    LIVE.dismissed = False
                 with open(SETTINGS, "w", encoding="utf-8") as f:
                     json.dump(STATE.settings, f)
                 STATE.version += 1
@@ -380,6 +540,7 @@ def main():
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     threading.Thread(target=server.serve_forever, daemon=True).start()
     WORKER.start()
+    LIVE.start()
 
     if "--no-window" in sys.argv:
         print(url)
@@ -394,6 +555,20 @@ def main():
         WINDOW = webview.create_window(TITLE, url, width=1360, height=840, min_size=(900, 600), frameless=True,
                                        easy_drag=False, background_color="#07090D",
                                        on_top=STATE.settings.get("topmost", True))
+        global OVERLAY
+        # 悬浮窗：建在屏幕外，进游戏时再挪进屏幕（不激活，不抢游戏焦点）
+        OVERLAY = webview.create_window(OVERLAY_TITLE, url + "overlay", width=OVERLAY_SIZE[0], height=OVERLAY_SIZE[1],
+                                        x=OFFSCREEN, y=OFFSCREEN, min_size=(200, 40), frameless=True, easy_drag=False, on_top=True,
+                                        background_color="#0B0F14", focus=False)
+
+        def hide_overlay_at_start():
+            time.sleep(0.5)
+            h = OV.hwnd()
+            if h:
+                OV._style(h)
+            OV.visible, OV.ready = False, True
+
+        OVERLAY.events.shown += lambda: threading.Thread(target=hide_overlay_at_start, daemon=True).start()
         webview.start(private_mode=False, storage_path=os.path.join(HERE, ".window"))
         return
 

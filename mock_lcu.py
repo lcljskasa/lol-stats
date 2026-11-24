@@ -38,6 +38,46 @@ ITEMS = {"bottom": [6672, 3124, 3302, 3115, 3006, 3031, 3094, 3087, 3036],
 KEYSTONE = {"bottom": (8008, 8000, 8300), "utility": (8439, 8400, 8300), "jungle": (8010, 8000, 8400),
             "middle": (8112, 8100, 8200), "top": (8437, 8400, 8000)}
 SPELLS = {"bottom": [4, 7], "utility": [4, 14], "jungle": [4, 11], "middle": [4, 14], "top": [4, 12]}
+START = time.time()
+ALIAS = {145: "Kaisa", 412: "Thresh", 64: "LeeSin", 117: "Lulu", 86: "Garen",
+         22: "Ashe", 157: "Yasuo", 103: "Ahri", 111: "Nautilus", 266: "Aatrox"}
+# 游戏内实时数据：我方 卡莎/锤石/盲僧/璐璐/盖伦，敌方 寒冰/亚索/阿狸/泰坦/剑魔
+LIVE_TEAMS = [
+    ("ORDER", [("峡谷的风", 145, "BOTTOM", [6672, 3006, 3124, 1055, 2055], (4, 2, 3)),
+               ("钩子大师", 412, "UTILITY", [3190, 3117, 2055, 2055], (0, 3, 6)),
+               ("野区霸主", 64, "JUNGLE", [6610, 3047, 3071], (3, 4, 2)),
+               ("中路小将", 117, "MIDDLE", [6616, 3020, 3108], (1, 2, 4)),
+               ("上单守门员", 86, "TOP", [6333, 3047, 3053], (2, 3, 1))]),
+    ("CHAOS", [("路人甲", 22, "BOTTOM", [3153, 3006, 3072], (3, 2, 4)),
+               ("路人乙", 111, "UTILITY", [3190, 3109, 2055], (1, 2, 7)),
+               ("路人丙", 157, "MIDDLE", [6673, 3006, 3031], (5, 3, 2)),
+               ("路人丁", 103, "JUNGLE", [6655, 3020, 3157], (2, 2, 5)),
+               ("路人戊", 266, "TOP", [6692, 3074, 3047, 3065], (4, 1, 2))]),
+]
+
+
+def live_data():
+    t = time.time() - START + 14 * 60  # 从第 14 分钟开始
+    players = []
+    for team, members in LIVE_TEAMS:
+        for name, cid, pos, items, (k, d, a) in members:
+            players.append({
+                "riotId": f"{name}#1", "riotIdGameName": name, "summonerName": name,
+                "rawChampionName": f"game_character_displayname_{ALIAS[cid]}", "team": team, "position": pos,
+                "level": 11, "isDead": name == "路人丙", "respawnTimer": 18.4 if name == "路人丙" else 0,
+                "scores": {"kills": k, "deaths": d, "assists": a, "creepScore": 120, "wardScore": 14.2},
+                "items": [{"itemID": i, "slot": n, "count": 1, "consumable": i == 2055} for n, i in enumerate(items)],
+            })
+    return {
+        "activePlayer": {"riotId": "峡谷的风#1", "level": 11, "currentGold": 812.5,
+                         "abilities": {"Q": {"abilityLevel": 5}, "W": {"abilityLevel": 1}, "E": {"abilityLevel": 3},
+                                       "R": {"abilityLevel": 2}}},
+        "allPlayers": players,
+        "gameData": {"gameMode": os.environ.get("MOCK_MODE", "CLASSIC"), "gameTime": t},
+        "events": {"Events": []},
+    }
+
+
 RUNE_PAGES = [{"id": 1, "name": "我的符文页", "isDeletable": True, "current": True}]
 
 
@@ -132,6 +172,8 @@ class H(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        if self.path == "/liveclientdata/allgamedata":  # 游戏内实时数据（真实接口不需要密码）
+            return self.reply(live_data()) if os.environ.get("MOCK_PHASE") == "InProgress" else self.reply({}, 404)
         want = "Basic " + base64.b64encode(f"riot:{TOKEN}".encode()).decode()
         if self.headers.get("Authorization") != want:
             return self.reply({"message": "unauthorized"}, 401)
@@ -139,8 +181,8 @@ class H(BaseHTTPRequestHandler):
         p = self.path
         by_id = {str(s[0]): s for s in PLAYERS}
         by_puuid = {s[1]: s for s in PLAYERS}
-        if p == "/lol-gameflow/v1/gameflow-phase":
-            return self.reply("ChampSelect")
+        if p == "/lol-gameflow/v1/gameflow-phase":  # MOCK_PHASE=InProgress 模拟游戏中
+            return self.reply(os.environ.get("MOCK_PHASE", "ChampSelect"))
         if p == "/lol-gameflow/v1/session":  # 设置环境变量 MOCK_ARAM=1 模拟大乱斗
             mode = "ARAM" if os.environ.get("MOCK_ARAM") else "CLASSIC"
             return self.reply({"gameData": {"queue": {"gameMode": mode, "id": 450 if mode == "ARAM" else 420}}})

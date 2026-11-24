@@ -462,6 +462,7 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
       <button data-v="diamond_plus">钻石+</button><button data-v="master_plus">大师+</button>
     </div>
     <button class="tbtn" id="refresh" title="重新查询"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
+    <button class="tbtn" id="ovl" title="游戏内悬浮窗：进游戏自动显示（需要无边框或窗口模式）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><rect x="12" y="7" width="6" height="5" rx="1" fill="currentColor"/></svg>悬浮窗</button>
     <button class="tbtn" id="pin" title="窗口置顶"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg></button>
   </div>
   <div class="winctl" id="winctl">
@@ -1026,6 +1027,8 @@ function render() {
   document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.v === mode));
   document.querySelectorAll("#otier button").forEach(b => b.classList.toggle("on", b.dataset.v === otier));
   $("#pin").classList.toggle("on", !!state.settings.topmost);
+  $("#ovl").classList.toggle("on", state.settings.overlay !== false);
+  $("#ovl").style.display = state.native ? "" : "none";
   $("#winctl").style.display = state.native ? "" : "none";
 
   // 记住滚动位置和搜索框光标，重画后恢复
@@ -1151,6 +1154,11 @@ $("#refresh").onclick = () => {
   post("/api/refresh");
 };
 $("#pin").onclick = () => post("/api/settings", { topmost: !state?.settings.topmost });
+$("#ovl").onclick = () => {
+  const on = state?.settings.overlay === false;
+  post("/api/settings", { overlay: on });
+  toast(on ? "已开启游戏内悬浮窗：进游戏自动显示（游戏需设为无边框或窗口模式）" : "已关闭游戏内悬浮窗");
+};
 
 poll();
 setInterval(poll, 1000);
