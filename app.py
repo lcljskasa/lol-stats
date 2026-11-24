@@ -553,13 +553,13 @@ def main():
     if webview:
         global WINDOW
         WINDOW = webview.create_window(TITLE, url, width=1360, height=840, min_size=(900, 600), frameless=True,
-                                       easy_drag=False, background_color="#07090D",
+                                       easy_drag=False, background_color="#1B1B20",
                                        on_top=STATE.settings.get("topmost", True))
         global OVERLAY
         # 悬浮窗：建在屏幕外，进游戏时再挪进屏幕（不激活，不抢游戏焦点）
         OVERLAY = webview.create_window(OVERLAY_TITLE, url + "overlay", width=OVERLAY_SIZE[0], height=OVERLAY_SIZE[1],
                                         x=OFFSCREEN, y=OFFSCREEN, min_size=(200, 40), frameless=True, easy_drag=False, on_top=True,
-                                        background_color="#0B0F14", focus=False)
+                                        background_color="#1B1B20", focus=False)
 
         def hide_overlay_at_start():
             time.sleep(0.5)
@@ -569,6 +569,8 @@ def main():
             OV.visible, OV.ready = False, True
 
         OVERLAY.events.shown += lambda: threading.Thread(target=hide_overlay_at_start, daemon=True).start()
+        # 关掉主窗口就整个退出（否则屏幕外的悬浮窗会让程序一直在后台运行）
+        WINDOW.events.closed += lambda: os._exit(0)
         webview.start(private_mode=False, storage_path=os.path.join(HERE, ".window"))
         return
 

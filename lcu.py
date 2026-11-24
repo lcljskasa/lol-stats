@@ -188,14 +188,20 @@ class LCU:
             raise
         except Exception:
             return None
-        solo = (data.get("queueMap") or {}).get("RANKED_SOLO_5x5") or {}
-        tier = solo.get("tier") or ""
-        if not tier or tier in ("NONE", "UNRANKED"):
-            return {"tier": "", "text": "单双排无段位"}
-        div = solo.get("division") or ""
-        div = "" if div in ("NA", "") or tier in ("MASTER", "GRANDMASTER", "CHALLENGER") else " " + div
-        return {"tier": tier, "text": f"{TIERS.get(tier, tier)}{div}", "lp": solo.get("leaguePoints", 0),
-                "wins": solo.get("wins", 0), "losses": solo.get("losses", 0)}
+        qm = data.get("queueMap") or {}
+
+        def one(q, empty):
+            x = qm.get(q) or {}
+            tier = x.get("tier") or ""
+            if not tier or tier in ("NONE", "UNRANKED"):
+                return {"tier": "", "text": empty, "wins": x.get("wins", 0), "losses": x.get("losses", 0)}
+            div = x.get("division") or ""
+            div = "" if div in ("NA", "") or tier in ("MASTER", "GRANDMASTER", "CHALLENGER") else " " + div
+            return {"tier": tier, "text": f"{TIERS.get(tier, tier)}{div}", "lp": x.get("leaguePoints", 0),
+                    "wins": x.get("wins", 0), "losses": x.get("losses", 0)}
+
+        # 顶层是单双排（保持原来的格式），flex 是灵活组排
+        return {**one("RANKED_SOLO_5x5", "单双排无段位"), "flex": one("RANKED_FLEX_SR", "灵活组排无段位")}
 
     # ---- 战绩：分页并发 + 本地缓存 ----
     def _page(self, puuid, beg, end):

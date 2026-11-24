@@ -223,7 +223,9 @@ class H(BaseHTTPRequestHandler):
             tier, div = {"p-2": ("DIAMOND", "III"), "p-3": ("SILVER", "I"), "p-4": ("EMERALD", "IV"),
                          "p-5": ("", "")}.get(m.group(1), ("PLATINUM", "II"))
             return self.reply({"queueMap": {"RANKED_SOLO_5x5": {"tier": tier, "division": div, "leaguePoints": 47,
-                                                                "wins": 88, "losses": 79}}})
+                                                                "wins": 88, "losses": 79},
+                                            "RANKED_FLEX_SR": {"tier": "GOLD", "division": "I", "leaguePoints": 12,
+                                                               "wins": 21, "losses": 17}}})
         if m := re.match(r"/lol-match-history/v1/products/lol/([^/?]+)/matches\?begIndex=(\d+)&endIndex=(\d+)", p):
             s = by_puuid.get(m.group(1))
             beg, end = int(m.group(2)), int(m.group(3))

@@ -6,10 +6,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 :root {
-  --bg: #0b0f14; --card: #111821; --line: rgba(255, 255, 255, .07); --line-2: rgba(255, 255, 255, .12);
-  --text: #ece6d8; --text-2: #a7a59e; --text-3: #6c6f75;
-  --gold: #c8aa6e; --gold-hi: #f0e6d2; --gold-lo: #5b4521;
-  --win: #5aa9ff; --loss: #ff5d6c; --ok: #3ddc97;
+  --bg: #1b1b20; --card: #232329; --line: rgba(255, 255, 255, .07); --line-2: rgba(255, 255, 255, .12);
+  --text: #ffffff; --text-2: #b8b8c6; --text-3: #7d7c8f;
+  --gold: #8b6dff; --gold-hi: #e6e0ff; --gold-lo: #4a3c9a;
+  --win: #5383e8; --loss: #e84057; --ok: #00bba3;
   --num: "Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,7 +22,7 @@ img { display: block; }
 .c-good { color: var(--win); } .c-bad { color: var(--loss); } .c-dim { color: var(--text-3); } .c-ok { color: var(--ok); }
 
 .bar { height: 50px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 12px; border-bottom: 1px solid var(--line);
-       background: linear-gradient(#0e1319, #0b0f14); }
+       background: #17171b; }
 .mark { width: 12px; height: 12px; transform: rotate(45deg); border: 1.5px solid var(--gold); border-radius: 2px; flex: none; }
 .title { font-size: 12px; font-weight: 600; color: var(--gold-hi); letter-spacing: .08em; }
 .time { font: 600 13px var(--num); color: var(--text-2); }
@@ -52,7 +52,7 @@ main::-webkit-scrollbar { width: 6px; } main::-webkit-scrollbar-thumb { backgrou
 /* 出装 */
 .build { display: flex; gap: 6px; align-items: flex-start; }
 .it { position: relative; width: 40px; text-align: center; }
-.it img, .it .ph { width: 40px; height: 40px; border-radius: 8px; background: #1a222d; border: 1px solid var(--line); }
+.it img, .it .ph { width: 40px; height: 40px; border-radius: 8px; background: #2c2c33; border: 1px solid var(--line); }
 .it.own img { opacity: .45; filter: grayscale(.6); }
 .it.own::after { content: "✓"; position: absolute; top: 9px; left: 0; right: 0; font: 700 18px var(--num); color: var(--ok); text-shadow: 0 0 6px #000; }
 .it.next img { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 12px rgba(200, 170, 110, .45); }
@@ -80,7 +80,7 @@ main::-webkit-scrollbar { width: 6px; } main::-webkit-scrollbar-thumb { backgrou
 .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .row + .row { margin-top: 7px; }
 .ch { position: relative; width: 30px; height: 30px; }
-.ch img, .ch .ph { width: 30px; height: 30px; border-radius: 7px; background: #1a222d; }
+.ch img, .ch .ph { width: 30px; height: 30px; border-radius: 7px; background: #2c2c33; }
 .ch.dead img { filter: grayscale(1) brightness(.5); }
 .ch i { position: absolute; right: -4px; bottom: -4px; font: 700 10px var(--num); font-style: normal; background: #000; color: var(--text);
         border: 1px solid var(--line-2); border-radius: 5px; padding: 0 4px; }

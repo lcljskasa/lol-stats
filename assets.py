@@ -92,6 +92,8 @@ class Assets:
         if isinstance(data, dict):  # perkstyles 外面还包了一层
             data = data.get("styles") or []
         data = [d for d in data if isinstance(d, dict) and d.get("id", -1) > 0]
+        if kind == "champions":  # 去掉特殊模式用的英雄变体（编号 1 万以上，如 Jade_Annie）
+            data = [d for d in data if d["id"] < 10000]
         with self._lock:
             self._lists[kind] = data
         return data

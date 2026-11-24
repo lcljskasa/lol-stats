@@ -6,21 +6,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 :root {
-  --bg: #07090d;
-  --card: #0d1117;
-  --card-2: #121821;
-  --card-3: #171f2a;
+  --bg: #1b1b20;
+  --side: #121215;
+  --top: #17171b;
+  --card: #232329;
+  --card-2: #2c2c33;
+  --card-3: #34343c;
   --line: rgba(255, 255, 255, .06);
   --line-2: rgba(255, 255, 255, .11);
-  --text: #ece6d8;
-  --text-2: #a7a59e;
-  --text-3: #6c6f75;
-  --gold: #c8aa6e;
-  --gold-hi: #f0e6d2;
-  --gold-lo: #5b4521;
-  --win: #5aa9ff;
-  --loss: #ff5d6c;
-  --mid: #d9b56b;
+  --text: #ffffff;
+  --text-2: #b8b8c6;
+  --text-3: #7d7c8f;
+  --gold: #8b6dff;          /* 主色：紫 */
+  --gold-hi: #e6e0ff;
+  --gold-lo: #4a3c9a;
+  --accent: #7b5cff;
+  --win: #5383e8;           /* OP.GG 胜利蓝 */
+  --win-bg: #28344e;
+  --loss: #e84057;          /* OP.GG 失败红 */
+  --loss-bg: #59343b;
+  --mid: #ffb900;
   --num: "Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,40 +38,50 @@ img { display: block; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .1); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 
-/* ================= 标题栏 ================= */
-.titlebar { height: 52px; display: flex; align-items: center; background: linear-gradient(#0b0e13, #080a0e);
-            border-bottom: 1px solid var(--line); position: relative; z-index: 20; }
+/* ================= 外框：左侧导航 + 顶栏 ================= */
+.app { height: 100vh; display: grid; grid-template-columns: 72px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.side { background: var(--side); display: flex; flex-direction: column; align-items: center; padding: 12px 0 10px; gap: 4px;
+        border-right: 1px solid var(--line); z-index: 21; }
+.logo { width: 40px; height: 40px; border-radius: 11px; background: linear-gradient(135deg, #8b6dff, #5b3fd9); display: grid; place-items: center;
+        margin-bottom: 14px; box-shadow: 0 6px 18px rgba(123, 92, 255, .35); }
+.logo::after { content: ""; width: 14px; height: 14px; border: 2.5px solid #fff; border-radius: 3px; transform: rotate(45deg); }
+.nav { display: flex; flex-direction: column; gap: 4px; width: 100%; align-items: center; }
+.navb { width: 56px; padding: 8px 0 6px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+        color: var(--text-3); font-size: 11px; transition: background .15s, color .15s; position: relative; }
+.navb svg { width: 21px; height: 21px; }
+.navb:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
+.navb.on { color: #fff; background: rgba(123, 92, 255, .18); }
+.navb.on::before { content: ""; position: absolute; left: -8px; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--accent); }
+.side .grow { flex: 1; }
+.sideb { width: 44px; height: 40px; border-radius: 10px; display: grid; place-items: center; color: var(--text-3); transition: background .15s, color .15s; }
+.sideb svg { width: 19px; height: 19px; }
+.sideb:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
+.sideb.on { color: #b9a8ff; }
+.col { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.titlebar { height: 50px; flex: none; display: flex; align-items: center; background: var(--top); border-bottom: 1px solid var(--line); position: relative; z-index: 20; }
 .drag { align-self: stretch; display: flex; align-items: center; }
-.brand { gap: 11px; padding: 0 16px 0 20px; }
-.mark { width: 18px; height: 18px; transform: rotate(45deg); border: 1.5px solid var(--gold); border-radius: 3px;
-        display: grid; place-items: center; box-shadow: 0 0 14px rgba(200, 170, 110, .35); }
-.mark::after { content: ""; width: 6px; height: 6px; background: var(--gold-hi); border-radius: 1px; }
-.brand-name { font-size: 14px; font-weight: 600; letter-spacing: .12em; color: var(--gold-hi); }
-.nav { display: flex; align-self: stretch; gap: 2px; padding: 0 6px; border-left: 1px solid var(--line); }
-.nav button { position: relative; padding: 0 14px; font-size: 13px; color: var(--text-3); transition: color .15s; }
-.nav button:hover { color: var(--text); }
-.nav button.on { color: var(--gold-hi); }
-.nav button.on::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; background: var(--gold); border-radius: 2px; }
-.status { gap: 8px; color: var(--text-3); font-size: 12px; padding: 0 14px; border-left: 1px solid var(--line); min-width: 0; }
+.ptitle { padding: 0 18px; font-size: 15px; font-weight: 700; gap: 10px; }
+.ptitle small { font-size: 12px; font-weight: 400; color: var(--text-3); }
+.status { gap: 8px; color: var(--text-3); font-size: 12px; padding: 0 14px; min-width: 0; }
 .status b { color: var(--text-2); font-weight: 400; }
-.led { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); flex: none; }
-.led.ok { background: #3ddc97; box-shadow: 0 0 8px #3ddc97; }
+.led { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); flex: none; }
+.led.ok { background: #00bba3; box-shadow: 0 0 8px #00bba3; }
 .led.bad { background: var(--loss); box-shadow: 0 0 8px var(--loss); }
 .status-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .grow { flex: 1; }
-.tools { display: flex; align-items: center; gap: 6px; padding-right: 8px; }
-.seg { display: flex; padding: 2px; border-radius: 8px; background: rgba(255, 255, 255, .03); border: 1px solid var(--line); }
-.seg button { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--text-3); transition: color .15s, background .15s; white-space: nowrap; }
+.tools { display: flex; align-items: center; gap: 8px; padding-right: 8px; }
+.seg { display: flex; padding: 3px; border-radius: 8px; background: var(--card); }
+.seg button { padding: 4px 11px; border-radius: 6px; font-size: 12px; color: var(--text-3); transition: color .15s, background .15s; white-space: nowrap; }
 .seg button:hover { color: var(--text); }
-.seg button.on { color: var(--gold-hi); background: rgba(200, 170, 110, .12); }
+.seg button.on { color: #fff; background: var(--accent); }
 .seg.count button { font-family: var(--num); min-width: 36px; }
-.tbtn { height: 30px; padding: 0 10px; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px;
+.tbtn { height: 30px; padding: 0 12px; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px;
         color: var(--text-2); font-size: 12px; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; }
 .tbtn:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
-.tbtn.on { color: var(--gold); }
+.tbtn.on { color: #b9a8ff; }
 .tbtn svg { width: 15px; height: 15px; }
-.tbtn.primary { color: var(--gold-hi); border: 1px solid var(--gold-lo); background: linear-gradient(rgba(200, 170, 110, .12), rgba(200, 170, 110, .04)); }
-.tbtn.primary:hover { border-color: var(--gold); }
+.tbtn.primary { color: #fff; background: var(--accent); border: 0; }
+.tbtn.primary:hover { background: #8d72ff; }
 .tbtn:disabled { opacity: .4; cursor: default; }
 .winctl { display: flex; align-self: stretch; }
 .winctl button { width: 46px; display: grid; place-items: center; color: var(--text-2); transition: background .12s, color .12s; }
@@ -74,6 +89,9 @@ img { display: block; }
 .winctl button.close:hover { background: #c42b1c; color: #fff; }
 .winctl svg { width: 10px; height: 10px; }
 
+main { flex: 1; min-height: 0; padding: 14px; position: relative; }
+main.scroll { overflow-y: auto; }
+main::-webkit-scrollbar { width: 9px; }
 main { height: calc(100vh - 52px); padding: 16px; position: relative; }
 .panel { min-height: 0; display: flex; flex-direction: column; border-radius: 14px; background: var(--card); border: 1px solid var(--line); overflow: hidden; }
 .panel-head { display: flex; align-items: baseline; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); flex: none; }
@@ -409,6 +427,132 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
 .skills { grid-template-columns: 22px repeat(15, 1fr); }
 .skills i.k { display: block; height: 22px; }
 .skills i.k img { width: 22px; height: 22px; border-radius: 5px; }
+
+/* ================= OP.GG 风格：通用卡片 ================= */
+.cardx { background: var(--card); border-radius: 10px; overflow: hidden; }
+.cardx-h { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.cardx-h h2 { font-size: 14px; font-weight: 700; }
+.cardx-h span { font-size: 12px; color: var(--text-3); }
+.cardx-h .seg { margin-left: auto; background: var(--card-2); }
+.cardx-b { padding: 12px 16px; }
+.tb1 { background: #5383e8; } .tb2 { background: #00bba3; } .tb3 { background: #ffb900; } .tb4 { background: #9e9eb1; } .tb5 { background: #6f6f80; } .tb0 { background: #e84057; }
+.tierb { color: #fff !important; }
+
+/* ================= 梯队页 ================= */
+.tierwrap { display: flex; flex-direction: column; gap: 14px; }
+.chg-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.chg-row + .chg-row { border-top: 1px solid var(--line); }
+.chg-lab { width: 46px; flex: none; font-size: 12px; font-weight: 700; padding: 3px 0; text-align: center; border-radius: 6px; }
+.chg-lab.up { background: rgba(83, 131, 232, .15); color: #7ea5f5; } .chg-lab.down { background: rgba(232, 64, 87, .14); color: #f07386; }
+.chg-list { display: flex; gap: 10px; flex-wrap: wrap; }
+.chg-c { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 54px; cursor: pointer; }
+.chg-c img, .chg-c .ph { width: 40px; height: 40px; border-radius: 8px; background: var(--card-2); }
+.chg-c span { font-size: 11px; color: var(--text-2); max-width: 54px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chg-c b { font: 700 11px var(--num); }
+.lanes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 12px; }
+.lane { background: var(--card-2); border-radius: 8px; overflow: hidden; }
+.lane-h { display: flex; align-items: center; gap: 8px; padding: 9px 12px; font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--line); }
+.lane-h svg { width: 16px; height: 16px; color: var(--text-3); }
+.lane table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.lane th { font-weight: 400; color: var(--text-3); font-size: 11px; padding: 6px 8px; text-align: left; }
+.lane td { padding: 5px 8px; border-top: 1px solid var(--line); }
+.lane tr.click { cursor: pointer; } .lane tr.click:hover td { background: rgba(255, 255, 255, .03); }
+.lane .cn img, .lane .cn .ph { width: 28px; height: 28px; border-radius: 6px; }
+.lane .cn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 84px; display: inline-block; }
+.lane .rk { width: 18px; }
+.tierb.sm { font-size: 11px; padding: 1px 6px; border-radius: 4px; }
+.cnt { display: flex; gap: 3px; }
+.cnt img, .cnt .ph { width: 26px; height: 26px; border-radius: 6px; background: var(--card-2); }
+.tierwrap table.t th { background: var(--card); }
+.tierwrap table.t td { padding: 7px 12px; }
+
+/* ================= 个人战绩页 ================= */
+.prof { display: flex; flex-direction: column; gap: 14px; }
+.pbanner { position: relative; height: 168px; border-radius: 10px; overflow: hidden; background: var(--card); flex: none; }
+.pbanner > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+.pbanner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(27, 27, 32, .96) 22%, rgba(27, 27, 32, .55) 60%, rgba(27, 27, 32, .2)),
+                  linear-gradient(0deg, rgba(27, 27, 32, .9), transparent 50%); }
+.pb-in { position: absolute; z-index: 2; left: 24px; bottom: 22px; right: 24px; display: flex; align-items: flex-end; gap: 18px; }
+.picon { position: relative; width: 88px; height: 88px; flex: none; }
+.picon img, .picon .ph { width: 88px; height: 88px; border-radius: 18px; background: var(--card-2); border: 2px solid rgba(255, 255, 255, .12); }
+.picon b { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); font: 700 11px var(--num); background: #1b1b20; color: #fff;
+           padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line-2); }
+.pb-name h1 { font-size: 24px; font-weight: 800; display: flex; align-items: baseline; gap: 8px; }
+.pb-name h1 span { font-size: 15px; font-weight: 400; color: var(--text-3); }
+.pb-name .sub { font-size: 12px; color: var(--text-2); margin: 3px 0 10px; }
+.pgrid { display: grid; grid-template-columns: 330px 1fr; gap: 14px; align-items: start; }
+.pleft { display: flex; flex-direction: column; gap: 10px; }
+.pright { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rk-card .cardx-h { padding: 10px 16px; }
+.rk-body { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+.emb { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; flex: none; background: radial-gradient(circle, rgba(255, 255, 255, .06), transparent 70%); }
+.emb i { width: 34px; height: 34px; transform: rotate(45deg); border-radius: 7px; box-shadow: 0 0 22px currentColor; background: currentColor; }
+.rk-body .t { font-size: 18px; font-weight: 800; }
+.rk-body .lp { font-size: 12px; color: var(--text-2); }
+.rk-body .wr { margin-left: auto; text-align: right; font-size: 12px; color: var(--text-3); }
+.rk-body .wr b { display: block; font: 600 13px var(--num); color: var(--text-2); }
+.mc-row { display: grid; grid-template-columns: 36px 1fr 74px 52px; gap: 10px; align-items: center; padding: 7px 16px; border-top: 1px solid var(--line); cursor: pointer; }
+.mc-row:hover { background: rgba(255, 255, 255, .02); }
+.mc-row img, .mc-row .ph { width: 36px; height: 36px; border-radius: 50%; background: var(--card-2); }
+.mc-row b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-row small { font-size: 11px; color: var(--text-3); }
+.mc-row .k { text-align: center; font: 600 12px var(--num); }
+.mc-row .w { text-align: right; font: 600 13px var(--num); }
+.sum { display: grid; grid-template-columns: 230px 1fr 210px; gap: 0; }
+.sum > div { padding: 14px 18px; }
+.sum > div + div { border-left: 1px solid var(--line); }
+.donut { display: flex; align-items: center; gap: 16px; }
+.donut svg { width: 86px; height: 86px; flex: none; }
+.donut .dl { font-size: 12px; color: var(--text-3); }
+.donut .dl b { display: block; font: 700 16px var(--num); color: var(--text); margin: 2px 0; }
+.sum-ch { display: flex; flex-direction: column; gap: 7px; }
+.sum-ch div { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.sum-ch img, .sum-ch .ph { width: 26px; height: 26px; border-radius: 50%; background: var(--card-2); }
+.posv { display: flex; align-items: flex-end; gap: 10px; height: 88px; }
+.posv div { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; font-size: 10px; color: var(--text-3); }
+.posv i { width: 14px; border-radius: 3px 3px 0 0; background: var(--accent); min-height: 2px; }
+.tabsx { display: flex; gap: 4px; padding: 6px 8px; }
+.tabsx button { padding: 6px 12px; border-radius: 6px; font-size: 12px; color: var(--text-3); }
+.tabsx button.on { color: #fff; background: var(--card-2); }
+
+/* ================= OP.GG 对局行 ================= */
+.mg { display: grid; grid-template-columns: 6px 92px 1fr 220px; align-items: center; min-height: 96px; border-radius: 8px; overflow: hidden;
+      cursor: pointer; transition: filter .15s; flex: none; }
+.mg:hover { filter: brightness(1.12); }
+.mg.w { background: var(--win-bg); } .mg.l { background: var(--loss-bg); }
+.mg .bar { align-self: stretch; } .mg.w .bar { background: var(--win); } .mg.l .bar { background: var(--loss); }
+.mg-info { padding: 0 12px; font-size: 12px; color: var(--text-2); line-height: 1.5; }
+.mg-info .q { font-weight: 700; font-size: 12px; }
+.mg.w .mg-info .q, .mg.w .mg-info .res { color: #8eb3ff; } .mg.l .mg-info .q, .mg.l .mg-info .res { color: #ff8394; }
+.mg-info hr { border: 0; height: 1px; width: 46px; margin: 5px 0; background: rgba(255, 255, 255, .12); }
+.mg-info .res { font-weight: 700; }
+.mg-main { display: flex; flex-direction: column; gap: 8px; padding: 10px 6px; min-width: 0; }
+.mg-top { display: flex; align-items: center; gap: 6px; }
+.mg .ch, .mg .ch img, .mg .ch .ph { width: 48px; height: 48px; }
+.mg .ch img, .mg .ch .ph { border-radius: 50%; }
+.mg .ch i { right: -2px; bottom: -2px; border-radius: 999px; background: #1b1b20; }
+.vcol { display: flex; flex-direction: column; gap: 2px; }
+.vcol img, .vcol .ph { width: 22px; height: 22px; border-radius: 5px; background: rgba(0, 0, 0, .3); }
+.vcol.round img, .vcol.round .ph { border-radius: 50%; background: #000; }
+.mg-kda { padding: 0 10px; min-width: 104px; }
+.mg-kda b { font: 700 15px var(--num); white-space: nowrap; }
+.mg-kda b .d { color: var(--loss); }
+.mg-kda small { display: block; font: 600 12px var(--num); color: var(--text-2); }
+.mg-stat { padding-left: 10px; border-left: 1px solid rgba(255, 255, 255, .08); font-size: 11px; color: var(--text-2); line-height: 1.6; min-width: 112px; }
+.mg-stat .kp { color: #ff8394; }
+.mg-badge { display: inline-block; font: 700 10px var(--num); padding: 0 6px; border-radius: 999px; margin-left: 4px; }
+.mg-badge.mvp { background: #ffb900; color: #1b1b20; } .mg-badge.ace { background: #8b6dff; color: #fff; }
+.mg .items { gap: 3px; }
+.mg .items img, .mg .items .ph { width: 24px; height: 24px; border-radius: 5px; background: rgba(0, 0, 0, .25); }
+.mg-ps { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; padding: 8px 12px 8px 4px; font-size: 11px; color: var(--text-3); }
+.mg-ps div { display: flex; align-items: center; gap: 4px; height: 18px; min-width: 0; }
+.mg-ps img, .mg-ps .ph { width: 16px; height: 16px; border-radius: 4px; background: rgba(0, 0, 0, .3); flex: none; }
+.mg-ps span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mg-ps .me span { color: #fff; font-weight: 700; }
+.mg-list { display: flex; flex-direction: column; gap: 6px; }
+.drawer .mg-list { padding: 10px 12px 14px; overflow-y: auto; flex: 1; min-height: 0; }
+.drawer { width: min(900px, 76%) !important; }
+.badge.mvp { background: #ffb900 !important; color: #1b1b20 !important; }
 .hint { font-size: 12px; color: var(--text-3); }
 .warn { font-size: 12px; color: var(--mid); }
 .trendline svg { width: 100%; height: 110px; display: block; }
@@ -442,12 +586,23 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
 </style>
 </head>
 <body>
-<div class="titlebar">
-  <div class="drag brand pywebview-drag-region"><div class="mark pywebview-drag-region"></div><span class="brand-name pywebview-drag-region">战绩速览</span></div>
+<div class="app">
+<aside class="side">
+  <div class="logo pywebview-drag-region" title="战绩速览"></div>
   <div class="nav" id="nav">
-    <button data-tab="team">队伍</button><button data-tab="me">我的</button>
-    <button data-tab="build">出装 · 对位</button><button data-tab="tier">梯队</button>
+    <button class="navb" data-tab="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.2c2.4.3 4 1.9 4.5 4.8"/></svg>队伍</button>
+    <button class="navb" data-tab="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c.8-4 3.8-6.2 7.5-6.2s6.7 2.2 7.5 6.2"/></svg>战绩</button>
+    <button class="navb" data-tab="build"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5l5 5-9.5 9.5H5v-5z"/><path d="M12.5 6.5l5 5"/></svg>出装</button>
+    <button class="navb" data-tab="tier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>梯队</button>
   </div>
+  <div class="grow pywebview-drag-region" style="width:100%"></div>
+  <button class="sideb" id="ovl" title="游戏内悬浮窗：进游戏自动显示（需要无边框或窗口模式）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><rect x="12" y="7" width="6" height="5" rx="1" fill="currentColor"/></svg></button>
+  <button class="sideb" id="pin" title="窗口置顶"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg></button>
+  <button class="sideb" id="refresh" title="重新查询"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
+</aside>
+<div class="col">
+<div class="titlebar">
+  <div class="drag ptitle pywebview-drag-region" id="ptitle">战绩速览</div>
   <div class="drag status pywebview-drag-region"><span class="led" id="led"></span><span class="status-text pywebview-drag-region" id="status">正在连接…</span></div>
   <div class="drag grow pywebview-drag-region"></div>
   <div class="tools">
@@ -461,9 +616,6 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
       <button data-v="all">全段位</button><button data-v="platinum_plus">铂金+</button><button data-v="emerald_plus">翡翠+</button>
       <button data-v="diamond_plus">钻石+</button><button data-v="master_plus">大师+</button>
     </div>
-    <button class="tbtn" id="refresh" title="重新查询"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
-    <button class="tbtn" id="ovl" title="游戏内悬浮窗：进游戏自动显示（需要无边框或窗口模式）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><rect x="12" y="7" width="6" height="5" rx="1" fill="currentColor"/></svg>悬浮窗</button>
-    <button class="tbtn" id="pin" title="窗口置顶"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 4 4H6l4-4z"/></svg></button>
   </div>
   <div class="winctl" id="winctl">
     <button data-a="minimize" title="最小化"><svg viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor"/></svg></button>
@@ -471,9 +623,11 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
     <button data-a="close" class="close" title="关闭"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor"/></svg></button>
   </div>
 </div>
-
 <main id="main"></main>
+</div>
+</div>
 <div id="overlay"></div>
+
 
 <script>
 const TOKEN = "__APP_TOKEN__";
@@ -501,7 +655,7 @@ const store = {
 };
 
 let state = null, assets = { champions: {}, items: {}, perks: {}, styles: {}, spells: {} }, assetsFor = null;
-let tab = store.get("tab", "team"), mode = store.get("mode", "all"), otier = store.get("otier", "emerald_plus");
+let tab = ["team", "me", "build", "tier"].includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "team"), mode = store.get("mode", "all"), otier = store.get("otier", "emerald_plus");
 let selected = null, lastKey = "", lastPhase = null;
 const fresh = { drawer: false, modal: false };
 const seen = new Set();
@@ -651,17 +805,50 @@ function card(p, { clickable = true, solo = false } = {}) {
 }
 
 /* ---------------- 对局行（OP.GG 风格） ---------------- */
-function gameRow(g, puuid) {
+// 每局的 10 人数据按需加载：同时最多 4 个请求，加载完稍等一下统一重画
+const gameCache = {}, gamePending = new Set(), gameQueue = [];
+let gameActive = 0, gameRenderTimer = null;
+function needGame(id) {
+  if (gameCache[id] || gamePending.has(id)) return;
+  gamePending.add(id); gameQueue.push(id); pumpGames();
+}
+function pumpGames() {
+  while (gameActive < 4 && gameQueue.length) {
+    const id = gameQueue.shift();
+    gameActive++;
+    getJSON(`/api/game/${id}`).then(d => { gameCache[id] = d; }).catch(() => { gameCache[id] = { error: true }; })
+      .finally(() => {
+        gameActive--; gamePending.delete(id); pumpGames();
+        clearTimeout(gameRenderTimer); gameRenderTimer = setTimeout(() => render(), 150);
+      });
+  }
+}
+function gameRow(g, puuid, i = 0) {
+  const d = gameCache[g.id];
+  if (!d && i < 30 && state?.connected) needGame(g.id);
+  const ok = d && !d.error;
+  const me = ok ? d.players.find(x => x.puuid === puuid) : null;
   const min = Math.max(g.dur / 60, 1);
   const items = (g.items || []).map(id => id ? itemImg(id) : '<div class="ph"></div>').join("");
-  return `<div class="g ${g.win ? "w" : "l"}" data-game="${g.id}" data-focus="${esc(puuid || "")}"><div class="edge"></div>
-      <div class="ch">${img("square", g.c)}${g.lvl ? `<i>${g.lvl}</i>` : ""}</div>
-      <div class="sp">${(g.spells || []).map(spellImg).join("")}${perkImg(g.perk)}${styleImg(g.sub)}</div>
-      <div style="min-width:0"><div class="t1">${esc(champName(g.c))}<span class="res ${g.win ? "c-good" : "c-bad"}">${g.win ? "胜利" : "失败"}</span></div>
-        <div class="t2">${esc(QUEUES[g.q] || "其他")} · ${Math.round(g.dur / 60)} 分钟 · ${ago(g.t)}${g.pos ? " · " + POS[g.pos] : ""}</div></div>
-      <div class="k"><div class="t1">${g.k} / <span class="d">${g.d}</span> / ${g.a}</div><div class="t2 num">KDA ${((g.k + g.a) / Math.max(g.d, 1)).toFixed(2)}</div></div>
-      <div class="items">${items}</div>
-      <div class="cs"><div class="t1 num">${g.cs}</div><div class="t2 num">${(g.cs / min).toFixed(1)}/分</div></div></div>`;
+  const teams = ok ? [100, 200].map(t => d.players.filter(x => x.team === t)) : null;
+  const ps = teams ? Array.from({ length: 5 }, (_, k) => teams.map(team => {
+      const x = team[k];
+      return x ? `<div class="${x.puuid && x.puuid === puuid ? "me" : ""}">${img("square", x.c)}<span>${esc(x.name || champName(x.c))}</span></div>` : "<div></div>";
+    }).join("")).join("")
+    : `<div class="c-dim" style="grid-column:1/3">${d?.error ? "" : "读取中…"}</div>`;
+  const badge = me?.badge ? `<span class="mg-badge ${me.badge.toLowerCase()}">${me.badge}</span>` : "";
+  return `<div class="mg ${g.win ? "w" : "l"}" data-game="${g.id}" data-focus="${esc(puuid || "")}"><div class="bar"></div>
+    <div class="mg-info"><div class="q">${esc(QUEUES[g.q] || "其他")}</div><div>${ago(g.t)}</div><hr>
+      <div class="res">${g.win ? "胜利" : "失败"}</div><div class="num">${Math.floor(g.dur / 60)}分${String(g.dur % 60).padStart(2, "0")}秒</div></div>
+    <div class="mg-main"><div class="mg-top">
+        <div class="ch">${img("square", g.c, "", champName(g.c))}${g.lvl ? `<i>${g.lvl}</i>` : ""}</div>
+        <div class="vcol">${(g.spells || []).map(spellImg).join("")}</div>
+        <div class="vcol round">${perkImg(g.perk)}${styleImg(g.sub)}</div>
+        <div class="mg-kda"><b>${g.k} / <span class="d">${g.d}</span> / ${g.a}</b><small>${((g.k + g.a) / Math.max(g.d, 1)).toFixed(2)}:1 KDA</small></div>
+        <div class="mg-stat">${me ? `<div class="kp">参团 ${pct(me.kp)}%</div>` : ""}<div>补刀 ${g.cs} (${(g.cs / min).toFixed(1)})</div>
+          ${me ? `<div>评分 <b class="num">${me.score.toFixed(1)}</b>${badge}</div>` : `<div>${g.pos ? POS[g.pos] : ""}</div>`}</div>
+      </div><div class="items">${items}</div></div>
+    <div class="mg-ps">${ps}</div></div>`;
 }
 
 /* ---------------- 队伍页 ---------------- */
@@ -674,7 +861,7 @@ function drawer(p) {
     <div class="banner">${bannerId ? `<img src="${art("splash", bannerId)}" alt="" onerror="this.remove()">` : ""}
       <div class="banner-text"><b>${esc(p.name)}</b><div>最近 ${s.n} 场${MODE_NAMES[mode]} · ${s.n ? pct(s.wr) + "% 胜率 · KDA " + s.kda.toFixed(2) : "没有对局"} · 点任意一局看 10 人详情</div></div>
       <button class="x" data-close="drawer"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
-    <div class="list" data-scroll="drawer">${s.gs.map(g => gameRow(g, p.puuid)).join("") || '<p class="c-dim" style="padding:20px">没有对局</p>'}</div></aside>`;
+    <div class="mg-list" data-scroll="drawer">${s.gs.map((g, i) => gameRow(g, p.puuid, i)).join("") || '<p class="c-dim" style="padding:20px">没有对局</p>'}</div></aside>`;
 }
 function emptyView() {
   const c = state?.connected;
@@ -691,64 +878,65 @@ function teamView() {
   return `<div class="team">${players.map(p => card(p)).join("")}</div>${sel ? drawer(sel) : ""}`;
 }
 
-/* ---------------- 我的页 ---------------- */
-function trendSvg(gs) {
-  // 滚动胜率（最近 10 场为一个窗口），从旧到新
-  const arr = gs.slice().reverse(), pts = [];
-  for (let i = 0; i < arr.length; i++) {
-    const w = arr.slice(Math.max(0, i - 9), i + 1);
-    pts.push(w.filter(g => g.win).length / w.length);
-  }
-  if (pts.length < 2) return '<p class="hint">对局太少</p>';
-  const W = 400, H = 112, x = i => i / (pts.length - 1) * W, y = v => H - 8 - v * (H - 16);
-  const d = pts.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
-  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <line x1="0" x2="${W}" y1="${y(.5)}" y2="${y(.5)}" stroke="rgba(255,255,255,.14)" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
-    <path d="${d}L${W},${H}L0,${H}Z" fill="rgba(200,170,110,.10)"/>
-    <path d="${d}" fill="none" stroke="#c8aa6e" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+/* ---------------- 个人战绩页（OP.GG 风格） ---------------- */
+function rankCard(r, title) {
+  const color = TIER_COLORS[r?.tier] || "#6f6f80";
+  const games = (r?.wins || 0) + (r?.losses || 0);
+  return `<section class="cardx rk-card"><div class="cardx-h"><h2>${title}</h2></div><div class="rk-body">
+    <div class="emb" style="color:${color}"><i></i></div>
+    <div><div class="t" style="color:${r?.tier ? color : "var(--text-3)"}">${esc(r?.tier ? r.text : "未定级")}</div>
+      <div class="lp num">${r?.tier ? r.lp + " LP" : ""}</div></div>
+    <div class="wr">${games ? `<b>${r.wins}胜 ${r.losses}负</b>胜率 ${pct(r.wins / games)}%` : "本赛季暂无对局"}</div></div></section>`;
+}
+function donut(wr) {
+  const C = 2 * Math.PI * 34, win = C * wr;
+  return `<svg viewBox="0 0 86 86"><circle cx="43" cy="43" r="34" fill="none" stroke="var(--loss)" stroke-width="9"/>
+    <circle cx="43" cy="43" r="34" fill="none" stroke="var(--win)" stroke-width="9" stroke-dasharray="${win} ${C}" transform="rotate(-90 43 43)"/>
+    <text x="43" y="48" text-anchor="middle" fill="#fff" font-size="15" font-weight="700" font-family="Bahnschrift">${pct(wr)}%</text></svg>`;
 }
 function meView() {
   const p = state.view === "self" ? (state.players || [])[0] : null;
-  if (!p) return `<div class="loading"><div><div class="spin"></div>${state.connected ? "正在读取你的战绩…" : "未连接到客户端"}</div></div>`;
-  if (p.loading) return `<div class="me-grid">${card(p, { clickable: false, solo: true })}<div class="loading"><div><div class="spin"></div>正在读取…</div></div></div>`;
-  if (p.error) return `<div class="me-grid">${card(p, { clickable: false, solo: true })}<div class="loading">${esc(p.error)}</div></div>`;
+  if (!p || p.loading) return `<div class="loading" style="height:80vh"><div><div class="spin"></div>${state.connected ? "正在读取你的战绩…" : "未连接到客户端"}</div></div>`;
+  if (p.error) return `<div class="loading" style="height:80vh">${esc(p.error)}</div>`;
   const s = stats(p);
+  const top = s.champs[0]?.id;
+  // 左侧：段位、常用英雄、常一起玩
+  const champs = s.champs.slice(0, 7).map(c => `<div class="mc-row" data-build="${c.id}">${img("square", c.id)}
+      <div style="min-width:0"><b>${esc(champName(c.id))}</b><small class="num">补刀 ${(c.cs / c.n).toFixed(0)} (${(c.cs / Math.max(c.min, 1)).toFixed(1)})</small></div>
+      <div class="k"><span class="${((c.k + c.a) / Math.max(c.d, 1)) >= 3.5 ? "c-good" : ""}">${((c.k + c.a) / Math.max(c.d, 1)).toFixed(2)}:1</span><br><small>${(c.k / c.n).toFixed(1)} / ${(c.d / c.n).toFixed(1)} / ${(c.a / c.n).toFixed(1)}</small></div>
+      <div class="w"><span class="${tone(c.w / c.n, c.n >= 3 ? 5 : 0)}">${pct(c.w / c.n)}%</span><br><small>${c.n} 场</small></div></div>`).join("");
+  const duos = duosCache[p.puuid];
+  if (!(p.puuid in duosCache) && p.puuid) loadDuos(p.puuid);
+  const duoHtml = duos === undefined ? '<div class="spin" style="margin:14px auto"></div>'
+    : duos.error ? `<p class="hint" style="padding:12px 16px">${esc(duos.error)}</p>`
+    : !duos.length ? '<p class="hint" style="padding:12px 16px">最近 20 场没有固定队友</p>'
+    : duos.map(d => `<div class="mc-row" style="cursor:default">${img("profile", d.icon)}<div style="min-width:0"><b>${esc(d.name)}</b><small>#${esc(d.tag)}</small></div>
+        <div class="k">${d.n} 场</div><div class="w"><span class="${tone(d.w / d.n, 5)}">${pct(d.w / d.n)}%</span></div></div>`).join("");
+  // 右侧汇总：胜率环、常用英雄、位置分布
   const byPos = {};
   for (const g of s.gs) if (g.pos) { const x = byPos[g.pos] ??= { n: 0, w: 0 }; x.n++; x.w += g.win; }
   const posMax = Math.max(1, ...Object.values(byPos).map(x => x.n));
-  const posHtml = POS_ORDER.map(k => {
-    const x = byPos[k] || { n: 0, w: 0 };
-    return `<div class="posbar"><span>${POS[k]}</span><div class="track"><div style="width:${x.n / posMax * 100}%"></div></div>
-      <span class="v num">${x.n} 场 ${x.n ? `<b class="${tone(x.w / x.n, x.n)}">${pct(x.w / x.n)}%</b>` : ""}</span></div>`;
-  }).join("") + (Object.keys(byPos).length ? "" : '<p class="hint">大乱斗等模式没有位置信息</p>');
-  const duos = duosCache[p.puuid];
-  if (!(p.puuid in duosCache) && p.puuid) loadDuos(p.puuid);
-  const duoHtml = duos === undefined ? '<div class="spin" style="margin-top:20px"></div>'
-    : duos.error ? `<p class="hint">${esc(duos.error)}</p>`
-    : !duos.length ? '<p class="hint">最近 20 场没有固定队友</p>'
-    : duos.map(d => `<div class="duo">${img("profile", d.icon)}<div style="min-width:0"><b>${esc(d.name)}<span> #${esc(d.tag)}</span></b>
-        <span class="num">一起 ${d.n} 场 · ${d.w} 胜</span></div><b class="num ${tone(d.w / d.n, 5)}">${pct(d.w / d.n)}%</b></div>`).join("");
-  const rows = s.champs.map(c => `<tr class="click" data-build="${c.id}">
-      <td><div class="cn">${img("square", c.id)}${esc(champName(c.id))}</div></td><td>${c.n}</td>
-      <td class="${tone(c.w / c.n, c.n >= 3 ? 5 : 0)}">${pct(c.w / c.n)}%</td>
-      <td>${((c.k + c.a) / Math.max(c.d, 1)).toFixed(2)}</td><td>${(c.cs / Math.max(c.min, 1)).toFixed(1)}</td>
-      <td>${Math.round(c.dmg / c.n).toLocaleString()}</td></tr>`).join("");
-  return `<div class="me-grid">${card(p, { clickable: false, solo: true })}
-    <div class="me-right">
-      <div class="me-top">
-        <section class="panel"><div class="panel-head"><h2>位置分布</h2><span>近 ${s.n} 场</span></div><div class="panel-body">${posHtml}</div></section>
-        <section class="panel"><div class="panel-head"><h2>胜率走势</h2><span>每 10 场滚动</span></div>
-          <div class="panel-body trend">${trendSvg(s.gs)}<div class="trend-legend"><span>较早</span><span>虚线 = 50%</span><span>最近</span></div></div></section>
-        <section class="panel"><div class="panel-head"><h2>常一起玩</h2><span>近 20 场</span></div><div class="panel-body" style="padding-top:6px">${duoHtml}</div></section>
-      </div>
-      <div class="me-bottom">
-        <section class="panel"><div class="panel-head"><h2>英雄数据</h2><span>点英雄看出装</span></div>
-          <div class="panel-body" style="padding:0" data-scroll="champs"><table class="t"><thead><tr><th>英雄</th><th>场次</th><th>胜率</th><th>KDA</th><th>补刀/分</th><th>场均伤害</th></tr></thead>
-          <tbody>${rows}</tbody></table></div></section>
-        <section class="panel"><div class="panel-head"><h2>最近对局</h2><span>${s.n} 场${MODE_NAMES[mode]} · 点开看 10 人详情和评分</span></div>
-          <div class="list" data-scroll="mylist">${s.gs.map(g => gameRow(g, p.puuid)).join("")}</div></section>
-      </div>
-    </div></div>`;
+  const posHtml = POS_ORDER.map(k => `<div title="${POS[k]} ${byPos[k]?.n || 0} 场"><i style="height:${(byPos[k]?.n || 0) / posMax * 64}px"></i>${POS[k]}</div>`).join("");
+  const top3 = s.champs.slice(0, 3).map(c => `<div>${img("square", c.id)}<span class="${tone(c.w / c.n, c.n >= 3 ? 5 : 0)} num">${pct(c.w / c.n)}%</span>
+      <span class="c-dim num">(${c.w}胜 ${c.n - c.w}负)</span><span class="num">${((c.k + c.a) / Math.max(c.d, 1)).toFixed(2)} KDA</span></div>`).join("");
+  return `<div class="prof">
+    <div class="pbanner">${top ? img("splash", top) : ""}<div class="pb-in">
+      <div class="picon">${img("profile", p.icon)}${p.level ? `<b>${p.level}</b>` : ""}</div>
+      <div class="pb-name"><h1>${esc(p.name)}${p.tag ? `<span>#${esc(p.tag)}</span>` : ""}</h1>
+        <div class="sub">最近 ${s.n} 场${MODE_NAMES[mode]} · ${s.n ? pct(s.wr) + "% 胜率 · KDA " + s.kda.toFixed(2) : "没有对局"}</div>
+        <button class="tbtn primary" data-refresh>更新战绩</button></div></div></div>
+    <div class="pgrid">
+      <aside class="pleft">${rankCard(p.rank, "单双排")}${rankCard(p.rank?.flex, "灵活组排")}
+        <section class="cardx"><div class="cardx-h"><h2>常用英雄</h2><span>近 ${s.n} 场</span></div>${champs || '<p class="hint" style="padding:12px 16px">没有对局</p>'}</section>
+        <section class="cardx"><div class="cardx-h"><h2>常一起玩</h2><span>近 20 场</span></div>${duoHtml}</section></aside>
+      <section class="pright">
+        ${s.n ? `<div class="cardx sum">
+          <div class="donut">${donut(s.wr)}<div class="dl">${s.n} 场 ${s.wins}胜 ${s.n - s.wins}负<b>${s.avg.map(x => x.toFixed(1)).join(" / ")}</b>
+            <span class="${s.kda >= 3.5 ? "c-good" : s.kda < 2 ? "c-bad" : ""} num" style="font-weight:700">${s.kda.toFixed(2)}:1</span> KDA</div></div>
+          <div class="sum-ch"><span class="hint">最常用英雄</span>${top3}</div>
+          <div><span class="hint">位置分布</span><div class="posv">${posHtml}</div></div></div>` : ""}
+        <div class="mg-list">${s.gs.slice(0, 60).map((g, i) => gameRow(g, p.puuid, i)).join("") || '<p class="hint">没有对局</p>'}</div>
+      </section></div></div>`;
 }
 async function loadDuos(puuid) {
   duosCache[puuid] = undefined;
@@ -935,35 +1123,63 @@ function buildView() {
   return `<div class="build">${picker}${main}</div>`;
 }
 
-/* ---------------- 梯队页 ---------------- */
+/* ---------------- 梯队页（OP.GG 风格） ---------------- */
+T.view = store.get("tview", "lanes");
 async function loadTiers() {
   const key = T.mode + otier;
   T.loading = true; T.err = null;
-  try { T.rows = await getJSON(`/api/opgg/tiers?mode=${T.mode}&tier=${otier}`); T.key = key; }
+  try { T.data = await getJSON(`/api/opgg/tiers?mode=${T.mode}&tier=${otier}`); T.key = key; }
   catch (e) { T.err = e.message; }
   T.loading = false;
   if (tab === "tier") render();
 }
+const tb = (t, sm = "") => `<span class="tierb ${sm} tb${t ?? 5}">${t ? "T" + t : "-"}</span>`;
+function tierTable(rows) {
+  return `<table class="t"><thead><tr><th>英雄</th><th>梯队</th><th>胜率</th><th>选取率</th><th>禁用率</th><th>KDA</th><th>克制它的英雄</th><th>较上版本</th></tr></thead><tbody>
+    ${rows.map(r => {
+      const ch = r.prevPatch && r.rank ? r.prevPatch - r.rank : 0;
+      return `<tr class="click" data-build="${r.id}" data-pos="${r.pos}"><td><div class="cn"><span class="rk">${r.rank || "-"}</span>${img("square", r.id)}${esc(champName(r.id) || "#" + r.id)}</div></td>
+        <td>${tb(r.tier)}</td><td class="${wrTone(r.win)}">${pct1(r.win)}</td><td>${pct1(r.pick)}</td><td>${pct1(r.ban)}</td>
+        <td>${r.kda ? r.kda.toFixed(2) : "--"}</td><td><div class="cnt" style="justify-content:flex-end">${(r.counters || []).map(c => img("square", c, "", champName(c))).join("")}</div></td>
+        <td class="chg ${ch > 0 ? "c-good" : ch < 0 ? "c-bad" : "c-dim"}">${ch > 0 ? "▲ " + ch : ch < 0 ? "▼ " + -ch : "—"}</td></tr>`;
+    }).join("")}</tbody></table>`;
+}
 function tierView() {
-  if ((!T.rows || T.key !== T.mode + otier) && !T.loading && !T.err) loadTiers();
-  const tabs = (T.mode === "ranked" ? POS_ORDER.map(k => `<button class="${T.pos === k ? "on" : ""}" data-tpos="${k}">${POS[k]}</button>`).join("") : "")
-    + `<button class="${T.mode === "aram" ? "on" : ""}" data-tmode="${T.mode === "aram" ? "ranked" : "aram"}">${T.mode === "aram" ? "返回排位" : "大乱斗"}</button>`;
-  let body;
-  if (T.err) body = `<div class="loading"><div>读取失败：${esc(T.err)}<br><br><button class="tbtn primary" data-tretry>重试</button></div></div>`;
-  else if (!T.rows || T.key !== T.mode + otier) body = `<div class="loading"><div><div class="spin"></div>正在读取 OP.GG 梯队…</div></div>`;
-  else {
-    const rows = T.rows.filter(r => T.mode === "aram" || r.pos === T.pos).sort((a, b) => (a.rank || 999) - (b.rank || 999));
-    body = `<div class="panel-body" style="padding:0" data-scroll="tiers"><table class="t"><thead><tr><th>英雄</th><th>梯队</th><th>胜率</th><th>选取率</th><th>禁用率</th><th>KDA</th><th>排名变化</th></tr></thead><tbody>
-      ${rows.map(r => {
-        const ch = r.prev && r.rank ? r.prev - r.rank : 0;
-        return `<tr class="click" data-build="${r.id}" data-pos="${r.pos}"><td><div class="cn"><span class="rk">${r.rank || "-"}</span>${img("square", r.id)}${esc(champName(r.id) || "#" + r.id)}</div></td>
-          <td><span class="tierb tb${r.tier ?? 5}">T${r.tier ?? "-"}</span></td><td class="${wrTone(r.win)}">${pct1(r.win)}</td><td>${pct1(r.pick)}</td>
-          <td>${pct1(r.ban)}</td><td>${r.kda ? r.kda.toFixed(2) : "--"}</td>
-          <td class="chg ${ch > 0 ? "c-good" : ch < 0 ? "c-bad" : "c-dim"}">${ch > 0 ? "▲ " + ch : ch < 0 ? "▼ " + -ch : "—"}</td></tr>`;
-      }).join("")}</tbody></table></div>`;
+  if ((!T.data || T.key !== T.mode + otier) && !T.loading && !T.err) loadTiers();
+  if (T.err) return `<div class="loading" style="height:80vh"><div>读取失败：${esc(T.err)}<br><br><button class="tbtn primary" data-tretry>重试</button></div></div>`;
+  if (!T.data || T.key !== T.mode + otier) return `<div class="loading" style="height:80vh"><div><div class="spin"></div>正在读取 OP.GG 梯队…</div></div>`;
+  const rows = T.data.rows || [];
+  const head = `v${esc(T.data.version || "")} ${T.mode === "aram" ? "大乱斗" : "英雄"}梯队`;
+  const sub = `${OTIER_NAMES[otier]} · 分析了 ${((T.data.matches || 0) / 10000).toFixed(0)} 万场 · 数据来自 OP.GG`;
+  const modeSeg = `<div class="seg"><button class="${T.mode === "ranked" ? "on" : ""}" data-tmode="ranked">排位</button><button class="${T.mode === "aram" ? "on" : ""}" data-tmode="aram">大乱斗</button></div>`;
+  if (T.mode === "aram") {
+    const list = rows.slice().sort((a, b) => (a.rank || 999) - (b.rank || 999));
+    return `<div class="tierwrap"><section class="cardx"><div class="cardx-h"><h2>${head}</h2><span>${sub}</span>${modeSeg}</div>${tierTable(list)}</section></div>`;
   }
-  return `<div class="tierpage"><div class="tierbar"><div class="seg">${tabs}</div><span class="hint">数据来自 OP.GG 全球服（${OTIER_NAMES[otier]}）· 点英雄查看出装</span></div>
-    <section class="panel">${body}</section></div>`;
+  // 版本变化：和上个版本比，同位置排名上升 / 下滑最多（只看选取率 ≥ 0.5% 的）
+  const moved = rows.filter(r => r.prevPatch && r.rank && r.pick >= .005).map(r => ({ ...r, delta: r.prevPatch - r.rank }));
+  const ups = moved.filter(r => r.delta > 0).sort((a, b) => b.delta - a.delta).slice(0, 12);
+  const downs = moved.filter(r => r.delta < 0).sort((a, b) => a.delta - b.delta).slice(0, 12);
+  const chg = list => list.map(r => `<div class="chg-c" data-build="${r.id}" data-pos="${r.pos}" title="${esc(champName(r.id))} ${POS[r.pos]}：第 ${r.prevPatch} → ${r.rank} 名">
+      ${img("square", r.id)}<span>${esc(champName(r.id))}</span><b class="${r.delta > 0 ? "c-good" : "c-bad"}">${r.delta > 0 ? "▲" : "▼"}${Math.abs(r.delta)} ${POS[r.pos]}</b></div>`).join("") || '<span class="hint">暂无</span>';
+  const changes = `<section class="cardx"><div class="cardx-h"><h2>版本变化</h2><span>与上个版本相比，同位置排名变化最大的英雄（按数据统计，不是官方的加强 / 削弱公告）</span></div>
+    <div class="cardx-b"><div class="chg-row"><span class="chg-lab up">上升</span><div class="chg-list">${chg(ups)}</div></div>
+      <div class="chg-row"><span class="chg-lab down">下滑</span><div class="chg-list">${chg(downs)}</div></div></div></section>`;
+  const viewSeg = `<div class="seg"><button class="${T.view === "lanes" ? "on" : ""}" data-tview="lanes">五路概览</button><button class="${T.view === "table" ? "on" : ""}" data-tview="table">详细数据</button></div>`;
+  let body;
+  if (T.view === "lanes") {
+    body = `<div class="lanes">${POS_ORDER.map(pos => {
+      const list = rows.filter(r => r.pos === pos).sort((a, b) => (a.rank || 999) - (b.rank || 999)).slice(0, 12);
+      return `<div class="lane"><div class="lane-h">${POS[pos]}</div><table><thead><tr><th>#</th><th>英雄</th><th style="text-align:right">梯队</th></tr></thead><tbody>
+        ${list.map(r => `<tr class="click" data-build="${r.id}" data-pos="${pos}"><td class="rk num">${r.rank}</td>
+          <td><div class="cn">${img("square", r.id)}<span>${esc(champName(r.id))}</span></div></td><td style="text-align:right">${tb(r.tier, "sm")}</td></tr>`).join("")}</tbody></table></div>`;
+    }).join("")}</div>`;
+  } else {
+    const tabs = `<div class="tabsx">${POS_ORDER.map(k => `<button class="${T.pos === k ? "on" : ""}" data-tpos="${k}">${POS[k]}</button>`).join("")}</div>`;
+    body = tabs + tierTable(rows.filter(r => r.pos === T.pos).sort((a, b) => (a.rank || 999) - (b.rank || 999)));
+  }
+  return `<div class="tierwrap">${changes}<section class="cardx"><div class="cardx-h"><h2>${head}</h2><span>${sub}</span>
+    <div style="margin-left:auto;display:flex;gap:8px">${viewSeg}${modeSeg}</div></div>${body}</section></div>`;
 }
 
 /* ---------------- 单局详情弹窗 ---------------- */
@@ -1037,6 +1253,8 @@ function render() {
   const typing = document.activeElement?.id === "csearch";
   const caret = typing ? document.activeElement.selectionStart : 0;
 
+  $("#ptitle").innerHTML = { team: "队伍", me: "我的战绩", build: "出装 · 对位", tier: "英雄梯队" }[tab];
+  $("#main").className = tab === "me" || tab === "tier" ? "scroll" : "";
   $("#main").innerHTML = tab === "team" ? teamView() : tab === "me" ? meView() : tab === "build" ? buildView() : tierView();
   $("#overlay").innerHTML = gameModal();
   document.querySelectorAll("[data-scroll]").forEach(el => { if (scrolls[el.dataset.scroll]) el.scrollTop = scrolls[el.dataset.scroll]; });
@@ -1060,7 +1278,8 @@ async function poll() {
     return;
   }
   if (assetsFor !== state.connected) { assetsFor = state.connected; loadAssets(); }
-  if (state.phase === "选英雄中" && lastPhase !== "选英雄中") {
+  if (tab === "build" && !B.data && !B.loading && !B.err) loadBuild();  // 上次停在出装页：打开时自动加载
+  if (state.phase === "选英雄中" && lastPhase !== null && lastPhase !== "选英雄中") {
     B.auto = true; B.autoKey = null; B.lastPick = null;  // 每局重新开启自动推荐（上一局手动换过英雄也一样）
     if (tab === "me") setTab("team");
   }
@@ -1074,6 +1293,7 @@ async function poll() {
   if (key !== lastKey) { lastKey = key; render(); }
 }
 function setTab(t) {
+  if (t !== tab) $("#main").scrollTop = 0;
   tab = t; store.set("tab", t);
   if (t === "me" && state && state.view !== "self") post("/api/self");
   if (t === "team" && state?.view === "self" && state.phase === "选英雄中") post("/api/team");
@@ -1125,6 +1345,9 @@ document.addEventListener("click", e => {
   if (tpos) { T.pos = tpos.dataset.tpos; store.set("tpos", T.pos); render(); return; }
   const tmode = t.closest("[data-tmode]");
   if (tmode) { T.mode = tmode.dataset.tmode; T.err = null; render(); return; }
+  const tview = t.closest("[data-tview]");
+  if (tview) { T.view = tview.dataset.tview; store.set("tview", T.view); render(); return; }
+  if (t.closest("[data-refresh]")) { delete duosCache[state?.players?.[0]?.puuid]; post("/api/refresh"); toast("正在更新战绩…"); return; }
   const c = t.closest(".card[data-key]");
   if (c) { selected = c.dataset.key; fresh.drawer = true; lastKey = ""; render(); }
 });
@@ -1150,7 +1373,7 @@ async function importRunes() {
 }
 $("#refresh").onclick = () => {
   if (tab === "build") { loadBuild(); return; }
-  if (tab === "tier") { T.rows = null; T.err = null; render(); return; }
+  if (tab === "tier") { T.data = null; T.err = null; render(); return; }
   post("/api/refresh");
 };
 $("#pin").onclick = () => post("/api/settings", { topmost: !state?.settings.topmost });

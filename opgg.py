@@ -38,9 +38,21 @@ def _top(lst, n):
     return [{"ids": x.get("ids"), "play": x.get("play"), "win": _rate(x), "pick": x.get("pick_rate")} for x in (lst or [])[:n]]
 
 
+_meta = {}
+
+
 def champion_list(mode="ranked", tier="emerald_plus"):
     params = {"tier": tier} if mode == "ranked" and tier in TIERS else None
-    return _get(f"/{mode}", params) or []
+    url = f"{BASE}/{mode}" + ("?" + urllib.parse.urlencode(params) if params else "")
+    with _lock:
+        hit = _cache.get(url)
+    if hit and time.time() - hit[0] < 1800:
+        return hit[1]
+    body = json.loads(fetch_url(url, timeout=20))
+    with _lock:
+        _cache[url] = (time.time(), body.get("data") or [])
+        _meta[mode] = body.get("meta") or {}
+    return body.get("data") or []
 
 
 def main_positions(mode="ranked"):
@@ -53,7 +65,7 @@ def main_positions(mode="ranked"):
 
 
 def tiers(mode="ranked", tier="emerald_plus"):
-    """梯队榜：每个英雄每个位置一行。"""
+    """梯队榜：每个英雄每个位置一行。另外给出版本号、样本量。"""
     rows = []
     for c in champion_list(mode, tier):
         if mode == "aram":
@@ -67,10 +79,14 @@ def tiers(mode="ranked", tier="emerald_plus"):
             st = p.get("stats") or {}
             td = st.get("tier_data") or {}
             rows.append({"id": c["id"], "pos": FROM_OPGG.get(p["name"], ""), "tier": td.get("tier"), "rank": td.get("rank"),
-                         "prev": td.get("rank_prev"), "win": st.get("win_rate"), "pick": st.get("pick_rate"),
-                         "ban": st.get("ban_rate"), "kda": st.get("kda"), "role": st.get("role_rate")})
+                         "prev": td.get("rank_prev"), "prevPatch": td.get("rank_prev_patch"),
+                         "win": st.get("win_rate"), "pick": st.get("pick_rate"),
+                         "ban": st.get("ban_rate"), "kda": st.get("kda"), "role": st.get("role_rate"),
+                         # 最克制它的 3 个英雄（它的胜率最低）
+                         "counters": [x["champion_id"] for x in (p.get("counters") or [])[:3]]})
     rows.sort(key=lambda r: (r["pos"], r["rank"] or 999))
-    return rows
+    meta = _meta.get(mode) or {}
+    return {"rows": rows, "version": meta.get("version"), "matches": meta.get("match_count")}
 
 
 def _raw_build(champ, pos, mode, tier, target=None):
