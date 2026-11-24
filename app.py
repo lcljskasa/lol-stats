@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
@@ -79,20 +80,35 @@ def parse_version(v):
     return tuple(int(x) for x in re.findall(r"\d+", v or "")[:3]) or (0,)
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **kw):
+        return None
+
+
+def latest_github_tag():
+    """github.com/<仓库>/releases/latest 会跳转到最新版本的页面，从跳转地址里读版本号。
+    不走 GitHub API，因为 API 对同一个出口地址每小时只能匿名查 60 次（网吧、公司里很容易用完）。"""
+    opener = urllib.request.build_opener(_NoRedirect, urllib.request.HTTPSHandler(context=ASSET_CTX))
+    req = urllib.request.Request(f"https://github.com/{REPO}/releases/latest", method="HEAD",
+                                 headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        opener.open(req, timeout=15)
+    except urllib.error.HTTPError as e:
+        m = re.search(r"/releases/tag/([^/?#]+)", e.headers.get("Location") or "")
+        if m:
+            return m.group(1)
+    return None
+
+
 def check_update():
     """启动后在后台看一下 GitHub 上有没有新版本，有的话在界面上提示。失败就算了，不打扰用户。"""
     time.sleep(5)
     try:
-        req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/releases/latest",
-                                     headers={"User-Agent": "Mozilla/5.0", "Accept": "application/vnd.github+json"})
-        with urllib.request.urlopen(req, timeout=15, context=ASSET_CTX) as r:
-            rel = json.loads(r.read().decode("utf-8"))
+        latest = latest_github_tag()
     except Exception:
         return
-    latest = rel.get("tag_name") or ""
-    if parse_version(latest) > parse_version(VERSION):
-        STATE.update(update_info={"version": latest.lstrip("v"), "url": rel.get("html_url") or f"https://github.com/{REPO}/releases/latest",
-                             "notes": (rel.get("body") or "").split("\n")[0][:80]})
+    if latest and parse_version(latest) > parse_version(VERSION):
+        STATE.update(update_info={"version": latest.lstrip("v"), "url": f"https://github.com/{REPO}/releases/tag/{latest}"})
 
 
 def load_settings():
