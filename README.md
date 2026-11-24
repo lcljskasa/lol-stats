@@ -2,6 +2,11 @@
 
 英雄联盟桌面小工具：选英雄时自动查队友战绩，推荐对位英雄、符文和出装，还有版本梯队榜和单局详情评分。
 
+## 下载
+
+- 国内推荐：Gitee 发行版 https://gitee.com/lclplm/lol-stats/releases
+- GitHub：https://github.com/lcljskasa/lol-stats/releases/latest
+
 ## 功能
 
 - **队伍**：进入选英雄自动弹出，显示每个队友的段位、胜率、KDA、最近 10 场、常用英雄，卡片背景是英雄原画。点卡片看完整对局列表。
