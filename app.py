@@ -19,12 +19,13 @@ import urllib.request
 
 import live
 import opgg
+import updater
 from assets import _CTX as ASSET_CTX
 from tray import Tray
 from assets import ASSETS
 from lcu import HERE, LCU, RES, NotConnected, POSITIONS
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 REPO = "lcljskasa/lol-stats"
 TITLE = "LOL 战绩速览"
 APP_TOKEN = secrets.token_urlsafe(16)  # 只有我们自己的页面知道，挡住其他网页调用本地接口
@@ -80,35 +81,49 @@ def parse_version(v):
     return tuple(int(x) for x in re.findall(r"\d+", v or "")[:3]) or (0,)
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, *a, **kw):
-        return None
-
-
-def latest_github_tag():
-    """github.com/<仓库>/releases/latest 会跳转到最新版本的页面，从跳转地址里读版本号。
-    不走 GitHub API，因为 API 对同一个出口地址每小时只能匿名查 60 次（网吧、公司里很容易用完）。"""
-    opener = urllib.request.build_opener(_NoRedirect, urllib.request.HTTPSHandler(context=ASSET_CTX))
-    req = urllib.request.Request(f"https://github.com/{REPO}/releases/latest", method="HEAD",
-                                 headers={"User-Agent": "Mozilla/5.0"})
-    try:
-        opener.open(req, timeout=15)
-    except urllib.error.HTTPError as e:
-        m = re.search(r"/releases/tag/([^/?#]+)", e.headers.get("Location") or "")
-        if m:
-            return m.group(1)
-    return None
-
-
 def check_update():
-    """启动后在后台看一下 GitHub 上有没有新版本，有的话在界面上提示。失败就算了，不打扰用户。"""
+    """启动后在后台检查 Gitee 和 GitHub 上有没有新版本，有的话在界面上提示。失败就算了，不打扰用户。"""
     time.sleep(5)
     try:
-        latest = latest_github_tag()
+        info = updater.check(VERSION)
     except Exception:
         return
-    if latest and parse_version(latest) > parse_version(VERSION):
-        STATE.update(update_info={"version": latest.lstrip("v"), "url": f"https://github.com/{REPO}/releases/tag/{latest}"})
+    if info:
+        STATE.update(update_info=info)
+
+
+def do_update():
+    """一键更新：下载新版 → 让新版接手替换 → 旧程序退出。"""
+    info = STATE.update_info
+    if not info:
+        return
+    if not getattr(sys, "frozen", False):
+        STATE.update(update_progress={"stage": "error", "msg": "源码运行的版本不能自动更新，请用 git 拉取最新代码"})
+        return
+    dest = os.path.join(HERE, "update", f"LOLStats-{info['version']}.exe")
+
+    def progress(done, total):
+        pct = int(done * 100 / total) if total else 0
+        if pct != (STATE.update_progress or {}).get("pct"):
+            STATE.update(update_progress={"stage": "downloading", "pct": pct, "mb": round(done / 1048576, 1)})
+
+    try:
+        STATE.update(update_progress={"stage": "downloading", "pct": 0, "mb": 0})
+        updater.download(info["urls"], dest, progress)
+    except Exception as e:
+        STATE.update(update_progress={"stage": "error", "msg": str(e)})
+        return
+    STATE.update(update_progress={"stage": "restarting"})
+    subprocess.Popen([dest, "--apply-update", sys.executable, str(os.getpid())],
+                     creationflags=0x00000008 | 0x00000200)  # 独立进程，不随旧程序一起退出
+    time.sleep(0.8)
+    MAIN.quit()
+
+
+def cleanup_update_files():
+    """更新完成后，删掉下载目录里的临时文件（新版刚启动时旧文件可能还被占用，稍等一下）。"""
+    time.sleep(15)
+    shutil.rmtree(os.path.join(HERE, "update"), ignore_errors=True)
 
 
 def load_settings():
@@ -134,6 +149,7 @@ class State:
         self.players = []            # 每个元素：{key, pos, champ, me, loading, ...战绩}
         self.pick = {}               # 选英雄时：{champ, pos, enemies:[英雄id]}
         self.update_info = None
+        self.update_progress = None  # 一键更新的进度
         self.auto_import = None      # 最近一次自动导入的信息，界面用来提示
         self.version = 0
 
@@ -155,7 +171,7 @@ class State:
         with self.lock:
             return {"connected": self.connected, "status": self.status, "phase": self.phase,
                     "view": self.view, "players": self.players, "settings": self.settings, "pick": self.pick,
-                    "appVersion": VERSION, "update": self.update_info, "autoImport": self.auto_import,
+                    "appVersion": VERSION, "update": self.update_info, "updateProgress": self.update_progress, "autoImport": self.auto_import,
                     "version": self.version}
 
 
@@ -809,9 +825,11 @@ class Handler(BaseHTTPRequestHandler):
             WORKER.want_team.set()
         elif self.path == "/api/show":
             threading.Thread(target=MAIN.show, daemon=True).start()
+        elif self.path == "/api/do-update":
+            threading.Thread(target=do_update, daemon=True).start()
         elif self.path == "/api/open-update":
             if STATE.update_info:
-                webbrowser.open(STATE.update_info["url"])
+                webbrowser.open(STATE.update_info["page"])
         elif self.path == "/api/overlay":
             action = body.get("action")
             if action == "close":          # 这一局先不显示
@@ -858,6 +876,10 @@ def find_edge():
 
 
 def main():
+    if "--apply-update" in sys.argv:
+        i = sys.argv.index("--apply-update")
+        updater.apply_update(sys.argv[i + 1], int(sys.argv[i + 2]))
+        return
     if "--no-window" not in sys.argv:
         single_instance()
         migrate_old_settings()
@@ -869,6 +891,7 @@ def main():
     except OSError:
         pass
     threading.Thread(target=check_update, daemon=True).start()
+    threading.Thread(target=cleanup_update_files, daemon=True).start()
     threading.Thread(target=server.serve_forever, daemon=True).start()
     WORKER.start()
     LIVE.start()
