@@ -554,6 +554,7 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
 .drawer { width: min(900px, 76%) !important; }
 .badge.mvp { background: #ffb900 !important; color: #1b1b20 !important; }
 .hint { font-size: 12px; color: var(--text-3); }
+.tbtn.more { align-self: center; margin: 6px 0 4px; height: 34px; padding: 0 22px; background: var(--card); flex: none; }
 .warn { font-size: 12px; color: var(--mid); }
 .trendline svg { width: 100%; height: 110px; display: block; }
 
@@ -609,9 +610,6 @@ table.ot tr:first-child td { background: rgba(200, 170, 110, .05); }
     <div class="seg" id="mode" data-for="team me">
       <button data-v="all">全部</button><button data-v="rank">排位</button><button data-v="normal">匹配</button><button data-v="aram">大乱斗</button>
     </div>
-    <div class="seg count" id="count" data-for="team me">
-      <button data-v="20">20</button><button data-v="50">50</button><button data-v="100">100</button><button data-v="200">200</button>
-    </div>
     <div class="seg" id="otier" data-for="build tier">
       <button data-v="all">全段位</button><button data-v="platinum_plus">铂金+</button><button data-v="emerald_plus">翡翠+</button>
       <button data-v="diamond_plus">钻石+</button><button data-v="master_plus">大师+</button>
@@ -666,6 +664,7 @@ const B = { champ: store.get("bchamp", 145), pos: null, target: null, mode: "ran
 const T = { pos: store.get("tpos", "bottom"), mode: "ranked", rows: null, key: null, err: null, loading: false };
 let modal = null;   // 单局详情 { id, focus, data, err }
 const duosCache = {};
+const showMore = { me: 40, drawer: 40 };  // 对局列表先显示多少场
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -861,7 +860,8 @@ function drawer(p) {
     <div class="banner">${bannerId ? `<img src="${art("splash", bannerId)}" alt="" onerror="this.remove()">` : ""}
       <div class="banner-text"><b>${esc(p.name)}</b><div>最近 ${s.n} 场${MODE_NAMES[mode]} · ${s.n ? pct(s.wr) + "% 胜率 · KDA " + s.kda.toFixed(2) : "没有对局"} · 点任意一局看 10 人详情</div></div>
       <button class="x" data-close="drawer"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.5"/></svg></button></div>
-    <div class="mg-list" data-scroll="drawer">${s.gs.map((g, i) => gameRow(g, p.puuid, i)).join("") || '<p class="c-dim" style="padding:20px">没有对局</p>'}</div></aside>`;
+    <div class="mg-list" data-scroll="drawer">${s.gs.slice(0, showMore.drawer).map((g, i) => gameRow(g, p.puuid, i)).join("") || '<p class="c-dim" style="padding:20px">没有对局</p>'}
+      ${s.n > showMore.drawer ? `<button class="tbtn more" data-more="drawer">显示更多（还有 ${s.n - showMore.drawer} 场）</button>` : ""}</div></aside>`;
 }
 function emptyView() {
   const c = state?.connected;
@@ -935,7 +935,8 @@ function meView() {
             <span class="${s.kda >= 3.5 ? "c-good" : s.kda < 2 ? "c-bad" : ""} num" style="font-weight:700">${s.kda.toFixed(2)}:1</span> KDA</div></div>
           <div class="sum-ch"><span class="hint">最常用英雄</span>${top3}</div>
           <div><span class="hint">位置分布</span><div class="posv">${posHtml}</div></div></div>` : ""}
-        <div class="mg-list">${s.gs.slice(0, 60).map((g, i) => gameRow(g, p.puuid, i)).join("") || '<p class="hint">没有对局</p>'}</div>
+        <div class="mg-list">${s.gs.slice(0, showMore.me).map((g, i) => gameRow(g, p.puuid, i)).join("") || '<p class="hint">没有对局</p>'}
+          ${s.n > showMore.me ? `<button class="tbtn more" data-more="me">显示更多（还有 ${s.n - showMore.me} 场）</button>` : ""}</div>
       </section></div></div>`;
 }
 async function loadDuos(puuid) {
@@ -1239,7 +1240,6 @@ function render() {
   $("#status").innerHTML = [state.phase && `<b>${esc(state.phase)}</b>`, esc(state.status)].filter(Boolean).join(" · ");
   document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
   document.querySelectorAll(".tools .seg").forEach(s => s.style.display = s.dataset.for.split(" ").includes(tab) ? "" : "none");
-  document.querySelectorAll("#count button").forEach(b => b.classList.toggle("on", +b.dataset.v === state.settings.games));
   document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.v === mode));
   document.querySelectorAll("#otier button").forEach(b => b.classList.toggle("on", b.dataset.v === otier));
   $("#pin").classList.toggle("on", !!state.settings.topmost);
@@ -1271,7 +1271,9 @@ async function loadAssets() {
 }
 async function poll() {
   try {
-    state = await (await api("/api/state")).json();
+    const next = await (await api("/api/state" + (state ? "?v=" + state.version : ""))).json();
+    if (!("players" in next)) next.players = state?.players || [];
+    state = next;
   } catch (e) {
     $("#status").textContent = "后台程序已退出";
     $("#led").className = "led bad";
@@ -1314,7 +1316,6 @@ document.addEventListener("click", e => {
   if (nav) { setTab(nav.dataset.tab); return; }
   const seg = t.closest(".seg button");
   if (seg?.parentElement.id === "mode") { mode = seg.dataset.v; store.set("mode", mode); lastKey = ""; render(); return; }
-  if (seg?.parentElement.id === "count") { post("/api/settings", { games: +seg.dataset.v }); return; }
   if (seg?.parentElement.id === "otier") {
     otier = seg.dataset.v; store.set("otier", otier);
     if (tab === "build") loadBuild(); else render();
@@ -1345,11 +1346,13 @@ document.addEventListener("click", e => {
   if (tpos) { T.pos = tpos.dataset.tpos; store.set("tpos", T.pos); render(); return; }
   const tmode = t.closest("[data-tmode]");
   if (tmode) { T.mode = tmode.dataset.tmode; T.err = null; render(); return; }
+  const more = t.closest("[data-more]");
+  if (more) { showMore[more.dataset.more] += 40; render(); return; }
   const tview = t.closest("[data-tview]");
   if (tview) { T.view = tview.dataset.tview; store.set("tview", T.view); render(); return; }
   if (t.closest("[data-refresh]")) { delete duosCache[state?.players?.[0]?.puuid]; post("/api/refresh"); toast("正在更新战绩…"); return; }
   const c = t.closest(".card[data-key]");
-  if (c) { selected = c.dataset.key; fresh.drawer = true; lastKey = ""; render(); }
+  if (c) { selected = c.dataset.key; fresh.drawer = true; showMore.drawer = 40; lastKey = ""; render(); }
 });
 document.addEventListener("input", e => { if (e.target.id === "csearch") { B.search = e.target.value; render(); } });
 document.addEventListener("change", e => {

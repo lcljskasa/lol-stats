@@ -26,12 +26,17 @@ PHASES = {"None": "在大厅", "Lobby": "在房间里", "Matchmaking": "排队�
           "WaitingForStats": "等待结算", "EndOfGame": "对局结束", "PreEndOfGame": "对局结束"}
 
 
+GAMES = 1000  # 每人查多少场
+
+
 def load_settings():
     try:
         with open(SETTINGS, encoding="utf-8") as f:
-            return {"games": 100, "topmost": True, "overlay": True, **json.load(f)}
+            saved = json.load(f)
     except (OSError, ValueError):
-        return {"games": 100, "topmost": True, "overlay": True}
+        saved = {}
+    # 场次固定 1000（客户端存不了那么多时，有多少显示多少）
+    return {"topmost": True, "overlay": True, **saved, "games": GAMES}
 
 
 class State:
@@ -418,6 +423,8 @@ class Handler(BaseHTTPRequestHandler):
         route = url.path
         if route == "/api/state":
             data = STATE.snapshot()
+            if q.get("v") == str(data["version"]):
+                data.pop("players")
             data["native"] = WINDOW is not None
             return self.json(data)
         if route.startswith("/art/"):  # /art/<种类>/<id>
@@ -510,8 +517,6 @@ class Handler(BaseHTTPRequestHandler):
                 WINDOW.destroy()
         elif self.path == "/api/settings":
             with STATE.lock:
-                if body.get("games") in (20, 50, 100, 200):
-                    STATE.settings["games"] = body["games"]
                 if "topmost" in body:
                     STATE.settings["topmost"] = bool(body["topmost"])
                     set_topmost(STATE.settings["topmost"])
@@ -521,8 +526,6 @@ class Handler(BaseHTTPRequestHandler):
                 with open(SETTINGS, "w", encoding="utf-8") as f:
                     json.dump(STATE.settings, f)
                 STATE.version += 1
-            if "games" in body:
-                WORKER.want_refresh.set()
         self.send(b"{}")
 
 

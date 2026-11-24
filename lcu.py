@@ -208,11 +208,20 @@ class LCU:
         data = self.get(f"/lol-match-history/v1/products/lol/{puuid}/matches?begIndex={beg}&endIndex={end - 1}")
         return [trim_game(g) for g in ((data or {}).get("games") or {}).get("games") or []]
 
-    def _pages(self, puuid, beg, end):
-        futures = [self.pages.submit(self._page, puuid, b, min(b + PAGE, end)) for b in range(beg, end, PAGE)]
+    def _pages(self, puuid, beg, end, wave=10):
+        """分批并发拉取：每批 10 页，某一页不满说明历史到头了，就不再继续。"""
         out = []
-        for f in futures:
-            out += f.result()
+        for start in range(beg, end, PAGE * wave):
+            stop = min(start + PAGE * wave, end)
+            futures = [self.pages.submit(self._page, puuid, b, min(b + PAGE, stop)) for b in range(start, stop, PAGE)]
+            done = False
+            for b, f in zip(range(start, stop, PAGE), futures):
+                got = f.result()
+                out += got
+                if len(got) < min(PAGE, stop - b):
+                    done = True
+            if done:
+                break
         return out
 
     def matches(self, puuid, want):

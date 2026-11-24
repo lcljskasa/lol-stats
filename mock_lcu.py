@@ -26,7 +26,7 @@ PLAYERS = [  # summonerId, puuid, 名字, 位置, 胜率倾向, 常用英雄, �
     (4, "p-4", "中路小将", "middle", 0.50, [103, 157, 238, 117], 117),
     (5, "p-5", "上单守门员", "top", 0.46, [86, 122, 157], 0),
 ]
-HISTORY = 320  # 每人模拟多少场历史
+HISTORY = 1000  # 每人模拟多少场历史
 ENEMIES = [22, 157, 103, 111, 0]  # 对面已选：寒冰、亚索、阿狸、泰坦，还有一个没选
 LANE = {"top": ("TOP", "SOLO"), "jungle": ("JUNGLE", "NONE"), "middle": ("MIDDLE", "SOLO"),
         "bottom": ("BOTTOM", "DUO_CARRY"), "utility": ("BOTTOM", "DUO_SUPPORT")}
@@ -99,7 +99,16 @@ ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mock_assets")
 PROFILE_ICONS = {1: 29, 2: 4568, 3: 5367, 4: 6, 5: 3500}
 
 
+_GAMES = {}
+
+
 def games_for(sid):
+    if sid not in _GAMES:
+        _GAMES[sid] = _make_games(sid)
+    return _GAMES[sid]
+
+
+def _make_games(sid):
     s = next(p for p in PLAYERS if p[0] == sid)
     rnd = random.Random(s[1])
     now = int(time.time() * 1000)
