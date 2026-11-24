@@ -87,6 +87,7 @@ def live_data():
 
 
 RUNE_PAGES = [{"id": 1, "name": "我的符文页", "isDeletable": True, "current": True}]
+MY_SPELLS = {"spell1Id": 14, "spell2Id": 4}  # 模拟用户习惯把闪现放在 F
 
 
 def line(rnd, pos, champ, win):
@@ -215,7 +216,7 @@ class H(BaseHTTPRequestHandler):
         if p == "/lol-champ-select/v1/session":
             return self.reply({"localPlayerCellId": 0, "myTeam": [
                 {"cellId": i, "summonerId": s[0], "puuid": s[1], "assignedPosition": s[3], "championId": s[6],
-                 "championPickIntent": 0} for i, s in enumerate(PLAYERS)],
+                 "championPickIntent": 0, **(MY_SPELLS if i == 0 else {})} for i, s in enumerate(PLAYERS)],
                 # 排位：对面身份隐藏（puuid 为空）；设 MOCK_VISIBLE=1 模拟对面身份公开的模式
                 "theirTeam": [{"cellId": 5 + i, "championId": c,
                                **({"puuid": ENEMY_PLAYERS[i][1], "summonerId": ENEMY_PLAYERS[i][0], "nameVisibilityType": "VISIBLE",
@@ -273,7 +274,20 @@ class H(BaseHTTPRequestHandler):
             return self.reply(RUNE_PAGES[-1])
         return self.reply({}, 404)
 
+    def do_PATCH(self):
+        if self.path == "/lol-champ-select/v1/session/my-selection":
+            MY_SPELLS.update(self._body())
+            print("设置召唤师技能", MY_SPELLS, flush=True)
+            return self.reply({})
+        return self.reply({}, 404)
+
     def do_PUT(self):
+        if self.path == "/lol-perks/v1/currentpage":
+            pid = self._body()
+            for x in RUNE_PAGES:
+                x["current"] = x["id"] == pid
+            print("当前符文页", pid, flush=True)
+            return self.reply({})
         if m := re.fullmatch(r"/lol-perks/v1/pages/(\d+)", self.path):
             page = next((x for x in RUNE_PAGES if x["id"] == int(m.group(1))), None)
             if page:

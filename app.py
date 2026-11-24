@@ -23,7 +23,7 @@ from tray import Tray
 from assets import ASSETS
 from lcu import HERE, LCU, RES, NotConnected, POSITIONS
 
-VERSION = "1.3.1"
+VERSION = "1.4.0"
 REPO = "lcljskasa/lol-stats"
 TITLE = "LOL 战绩速览"
 APP_TOKEN = secrets.token_urlsafe(16)  # 只有我们自己的页面知道，挡住其他网页调用本地接口
@@ -102,7 +102,7 @@ def load_settings():
     except (OSError, ValueError):
         saved = {}
     # 场次固定 1000（客户端存不了那么多时，有多少显示多少）
-    return {"topmost": True, "overlay": True, "autoPop": True, **saved, "games": GAMES}
+    return {"topmost": True, "overlay": True, "autoPop": True, "autoRunes": True, **saved, "games": GAMES}
 
 
 class State:
@@ -118,6 +118,7 @@ class State:
         self.players = []            # 每个元素：{key, pos, champ, me, loading, ...战绩}
         self.pick = {}               # 选英雄时：{champ, pos, enemies:[英雄id]}
         self.update_info = None
+        self.auto_import = None      # 最近一次自动导入的信息，界面用来提示
         self.version = 0
 
     def update(self, **kw):
@@ -138,7 +139,7 @@ class State:
         with self.lock:
             return {"connected": self.connected, "status": self.status, "phase": self.phase,
                     "view": self.view, "players": self.players, "settings": self.settings, "pick": self.pick,
-                    "appVersion": VERSION, "update": self.update_info,
+                    "appVersion": VERSION, "update": self.update_info, "autoImport": self.auto_import,
                     "version": self.version}
 
 
@@ -195,6 +196,41 @@ class Worker(threading.Thread):
         for f in futures:
             f.result()
         self.s.update(status=f"已加载 {len(entries)} 人 × {want} 场，用时 {time.time() - started:.1f} 秒")
+
+    def maybe_auto_import(self, champ, pos, enemies):
+        if not champ or not STATE.settings.get("autoRunes", True):
+            return
+        aram = bool(getattr(self, "aram", False))
+        target = None
+        if not aram and pos and enemies:  # 能推断出对线对手时，用针对它的版本
+            mains = opgg_main_positions_safe()
+            target = next((e for e in enemies if pos in (mains.get(e) or [])[:1]), None)
+        key = (champ, pos, target, aram)
+        if key == getattr(self, "auto_key", None):
+            return
+        self.auto_key = key
+        threading.Thread(target=self.auto_import, args=(champ, pos, target, aram), daemon=True).start()
+
+    def auto_import(self, champ, pos, target, aram):
+        try:
+            b = opgg.build(champ, pos, "aram" if aram else "ranked", "emerald_plus", target)
+            msgs = []
+            if b.get("runes"):
+                r = b["runes"][0]
+                name = ASSETS.names()["champions"].get(champ, "")
+                if target:
+                    name += " vs " + ASSETS.names()["champions"].get(target, "")
+                self.lcu.set_runes(name, r["primary"], r["secondary"], r["primaryRunes"] + r["secondaryRunes"] + (r["shards"] or []))
+                msgs.append("符文")
+            if b.get("spells"):
+                a, c = b["spells"][0]["ids"]
+                self.lcu.set_spells(a, c)
+                msgs.append("召唤师技能")
+            if msgs:
+                self.s.update(status=f"已自动导入{'和'.join(msgs)}（{ASSETS.names()['champions'].get(champ, '')}）",
+                              auto_import={"champ": champ, "target": target, "t": time.time()})
+        except Exception as e:
+            self.s.update(status=f"自动导入失败：{e}")
 
     def load_game(self):
         """进入加载界面后，双方 10 人的身份是公开的：读当前对局名单，查出双方战绩。
@@ -286,6 +322,7 @@ class Worker(threading.Thread):
             self.aram = ((sess.get("gameData") or {}).get("queue") or {}).get("gameMode") == "ARAM"
         self.s.update(pick={"champ": me.get("champ"), "pos": me.get("pos_raw"), "enemies": enemies,
                             "aram": bool(getattr(self, "aram", False))})
+        self.maybe_auto_import(me.get("champ"), me.get("pos_raw"), enemies)
 
         if key != self.lobby_key:
             self.self_mode = False
@@ -421,6 +458,13 @@ MAIN = MainWindow()
 def save_settings():
     with open(SETTINGS, "w", encoding="utf-8") as f:
         json.dump(STATE.settings, f)
+
+
+def opgg_main_positions_safe():
+    try:
+        return opgg.main_positions()
+    except Exception:
+        return {}
 
 
 def toggle_auto_pop():
@@ -738,6 +782,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json({"ok": True, "message": msg})
             except Exception as e:
                 return self.json({"ok": False, "message": str(e)}, code=400)
+        elif self.path == "/api/spells":
+            try:
+                if not WORKER.lcu:
+                    raise RuntimeError("没有连接客户端")
+                return self.json({"ok": True, "message": WORKER.lcu.set_spells(int(body["spell1"]), int(body["spell2"]))})
+            except Exception as e:
+                return self.json({"ok": False, "message": str(e)}, code=400)
         elif self.path == "/api/team":
             WORKER.want_team.set()
         elif self.path == "/api/show":
@@ -770,6 +821,9 @@ class Handler(BaseHTTPRequestHandler):
                 if "topmost" in body:
                     STATE.settings["topmost"] = bool(body["topmost"])
                     set_topmost(STATE.settings["topmost"])
+                if "autoRunes" in body:
+                    STATE.settings["autoRunes"] = bool(body["autoRunes"])
+                    WORKER.auto_key = None  # 刚打开开关时，本局也立刻导入一次
                 if "overlay" in body:
                     STATE.settings["overlay"] = bool(body["overlay"])
                     LIVE.dismissed = False

@@ -317,13 +317,34 @@ class LCU:
         pages = self.get("/lol-perks/v1/pages") or []
         ours = [p for p in pages if (p.get("name") or "").startswith(RUNE_PAGE_PREFIX) and p.get("isDeletable", True)]
         if ours:  # 已经有我们建的页：覆盖它，不动用户自己的页
-            self.send("PUT", f"/lol-perks/v1/pages/{ours[0]['id']}", body)
+            self.send("PUT", f"/lol-perks/v1/pages/{ours[0]['id']}", {**body, "id": ours[0]["id"]})
+            try:
+                self.send("PUT", "/lol-perks/v1/currentpage", ours[0]["id"])  # 设为当前使用的符文页
+            except Exception:
+                pass
             return "已更新符文页"
         try:
             self.send("POST", "/lol-perks/v1/pages", body)
             return "已新建符文页"
         except urllib.error.HTTPError:
             raise RuntimeError("符文页已满，请先在客户端删掉一页再导入")
+
+    # ---- 召唤师技能（只能在选英雄阶段设置，用户点按钮或开了自动导入才会调用） ----
+    def set_spells(self, a, b):
+        """设置召唤师技能。闪现放在用户原来放闪现的那个键上（D 或 F），不打乱习惯。"""
+        session = self.champ_select() or {}
+        me = next((m for m in session.get("myTeam") or [] if m.get("cellId") == session.get("localPlayerCellId")), None)
+        if me is None:
+            raise RuntimeError("现在不在选英雄阶段，召唤师技能要在选英雄时设置")
+        FLASH = 4
+        if FLASH in (a, b):
+            other = b if a == FLASH else a
+            if me.get("spell2Id") == FLASH:      # 原来闪现在 F
+                a, b = other, FLASH
+            else:                                # 原来闪现在 D，或者原来没带闪现：放 D
+                a, b = FLASH, other
+        self.send("PATCH", "/lol-champ-select/v1/session/my-selection", {"spell1Id": a, "spell2Id": b})
+        return "已设置召唤师技能"
 
     def send(self, method, path, body):
         req = urllib.request.Request(self.base + path, data=json.dumps(body).encode(), method=method,
