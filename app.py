@@ -23,7 +23,7 @@ from tray import Tray
 from assets import ASSETS
 from lcu import HERE, LCU, RES, NotConnected, POSITIONS
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 REPO = "lcljskasa/lol-stats"
 TITLE = "LOL 战绩速览"
 APP_TOKEN = secrets.token_urlsafe(16)  # 只有我们自己的页面知道，挡住其他网页调用本地接口
@@ -102,7 +102,7 @@ def load_settings():
     except (OSError, ValueError):
         saved = {}
     # 场次固定 1000（客户端存不了那么多时，有多少显示多少）
-    return {"topmost": True, "overlay": True, **saved, "games": GAMES}
+    return {"topmost": True, "overlay": True, "autoPop": True, **saved, "games": GAMES}
 
 
 class State:
@@ -154,6 +154,7 @@ class Worker(threading.Thread):
         self.want_refresh = threading.Event()
         self.self_mode = False   # 选英雄时用户切到了“我的战绩”
         self.game_key = None     # 当前对局双方名单，避免每秒重复查
+        self.raw_phase = ""      # 客户端原始的阶段名（InProgress 等）
 
     def run(self):
         while True:
@@ -221,6 +222,7 @@ class Worker(threading.Thread):
 
     def tick(self):
         phase = self.lcu.phase() or ""
+        self.raw_phase = phase
         self.s.update(phase=PHASES.get(phase, phase))
 
         if self.want_team.is_set():
@@ -421,6 +423,13 @@ def save_settings():
         json.dump(STATE.settings, f)
 
 
+def toggle_auto_pop():
+    with STATE.lock:
+        STATE.settings["autoPop"] = not STATE.settings.get("autoPop", True)
+        STATE.version += 1
+    save_settings()
+
+
 def toggle_overlay():
     with STATE.lock:
         STATE.settings["overlay"] = not STATE.settings.get("overlay", True)
@@ -563,6 +572,8 @@ class LiveWatcher(threading.Thread):
         self.dismissed = False   # 这一局里用户手动关掉了悬浮窗
         self.url = None          # 悬浮窗页面地址
         self.page = False        # 悬浮窗现在是不是真正的页面（不是空白页）
+        self.popped = False      # 这一局的加载界面，主窗口是不是我们自动弹出来的
+        self.tucked = False      # 游戏开始后是不是已经自动收回托盘
 
     def run(self):
         while True:
@@ -573,6 +584,7 @@ class LiveWatcher(threading.Thread):
                 self.data = {"active": False, "error": str(e)}
             if not self.data.get("active"):
                 self.dismissed = False
+            self.auto_pop()
             want = self.data.get("active") and STATE.settings.get("overlay", True) and not self.dismissed
             if OVERLAY is not None and OV.ready:
                 try:
@@ -590,6 +602,29 @@ class LiveWatcher(threading.Thread):
                 except Exception as e:
                     print("悬浮窗出错：", e, file=sys.stderr)
             time.sleep(1)
+
+
+    def auto_pop(self):
+        """加载界面：客户端已经是“游戏中”，但还读不到游戏内实时数据（游戏正式开始后才有）。
+        这时把主窗口弹到最前面看双方 10 人；游戏一开始，如果窗口是我们弹出来的，就收回托盘交给悬浮窗。"""
+        in_game = WORKER.raw_phase in ("GameStart", "InProgress", "Reconnect")
+        active = bool(self.data.get("active"))
+        if not in_game:
+            self.popped = self.tucked = False
+            return
+        if WINDOW is None or not STATE.settings.get("autoPop", True):
+            return
+        try:
+            if not active and not self.popped:          # 进入加载界面
+                self.popped = True
+                bring_to_front()
+            elif active and self.popped and not self.tucked:  # 游戏正式开始
+                self.tucked = True
+                MAIN.to_tray()
+            elif active and not self.popped:            # 中途重连 / 程序在游戏中才打开：什么都不做
+                self.popped = self.tucked = True
+        except Exception as e:
+            print("自动弹出出错：", e, file=sys.stderr)
 
 
 LIVE = LiveWatcher()
@@ -800,7 +835,8 @@ def main():
         WINDOW.events.closed += lambda: MAIN.quit()
         MAIN.url = url
         MAIN.tray = Tray(os.path.join(RES, "icon.ico"), on_show=MAIN.show, on_toggle_overlay=toggle_overlay,
-                         overlay_on=lambda: STATE.settings.get("overlay", True), on_quit=MAIN.quit)
+                         overlay_on=lambda: STATE.settings.get("overlay", True), on_quit=MAIN.quit,
+                         on_toggle_pop=toggle_auto_pop, pop_on=lambda: STATE.settings.get("autoPop", True))
         MAIN.tray.start()
         threading.Thread(target=ensure_desktop_shortcut, daemon=True).start()
         webview.start(private_mode=False, storage_path=os.path.join(HERE, ".window"))

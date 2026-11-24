@@ -190,7 +190,8 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/liveclientdata/allgamedata":  # 游戏内实时数据（真实接口不需要密码）
-            return self.reply(live_data()) if os.environ.get("MOCK_PHASE") == "InProgress" else self.reply({}, 404)
+            ok = os.environ.get("MOCK_PHASE") == "InProgress" and not os.environ.get("MOCK_LOADING")
+            return self.reply(live_data()) if ok else self.reply({}, 404)
         want = "Basic " + base64.b64encode(f"riot:{TOKEN}".encode()).decode()
         if self.headers.get("Authorization") != want:
             return self.reply({"message": "unauthorized"}, 401)

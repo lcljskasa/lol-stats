@@ -9,13 +9,15 @@ except ImportError:  # 没装 pystray 时不提供托盘，最小化按钮就普
 
 
 class Tray:
-    def __init__(self, icon_path, on_show, on_toggle_overlay, overlay_on, on_quit):
+    def __init__(self, icon_path, on_show, on_toggle_overlay, overlay_on, on_quit, on_toggle_pop=None, pop_on=None):
         self.icon = None
         if pystray is None or not os.path.exists(icon_path):
             return
         menu = pystray.Menu(
             pystray.MenuItem("显示主窗口", lambda: on_show(), default=True),  # 单击托盘图标也是这个
             pystray.MenuItem("游戏内悬浮窗", lambda: on_toggle_overlay(), checked=lambda _: overlay_on()),
+            pystray.MenuItem("加载时自动弹出 10 人", lambda: on_toggle_pop and on_toggle_pop(),
+                             checked=lambda _: bool(pop_on and pop_on())),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("退出", lambda: on_quit()),
         )

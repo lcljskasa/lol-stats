@@ -1328,6 +1328,8 @@ async function poll() {
   }
   if (assetsFor !== state.connected) { assetsFor = state.connected; loadAssets(); }
   if (tab === "build" && !B.data && !B.loading && !B.err) loadBuild();  // 上次停在出装页：打开时自动加载
+  const inGame = ph => ph === "游戏中" || ph === "游戏加载中";
+  if (inGame(state.phase) && lastPhase !== null && !inGame(lastPhase) && tab !== "team") setTab("team");
   if (state.phase === "选英雄中" && lastPhase !== null && lastPhase !== "选英雄中") {
     B.auto = true; B.autoKey = null; B.lastPick = null;  // 每局重新开启自动推荐（上一局手动换过英雄也一样）
     if (tab === "me") setTab("team");
